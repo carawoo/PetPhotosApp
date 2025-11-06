@@ -8,34 +8,35 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { AdminAuthProvider } from './src/contexts/AdminAuthContext';
 import AdminPortalScreen from './src/screens/AdminPortalScreen';
+import { getStorageKey, isDevelopment } from './src/config/environment';
 
-// 🔥 ONE-TIME CLEANUP - 한 번만 실행되는 강력한 cleanup
+// 🔥 ONE-TIME CLEANUP - 개발/프로덕션 환경 분리 및 데이터 초기화
 if (typeof localStorage !== 'undefined') {
-  const CLEANUP_VERSION = 'v4_final';
+  const CLEANUP_VERSION = 'v6_reset_all_data';
   const lastCleanup = localStorage.getItem('lastCleanupVersion');
 
   if (lastCleanup !== CLEANUP_VERSION) {
-    console.log('🔥 Running one-time cleanup...');
+    console.log('🔥 Running data cleanup for all environments...');
 
     try {
-      // 사용자 정보 백업
-      const users = localStorage.getItem('petPhotos_users');
-      const currentUser = localStorage.getItem('petPhotos_currentUser');
+      const isDev = isDevelopment();
+      const envLabel = isDev ? 'DEVELOPMENT' : 'PRODUCTION';
 
-      // posts 완전 삭제
-      localStorage.removeItem('petPhotos_posts');
+      console.log(`📍 Environment: ${envLabel}`);
+      console.log(`🗂️  Storage prefix: ${isDev ? 'petPhotos_dev_' : 'petPhotos_'}`);
 
-      // 빈 배열로 초기화
-      localStorage.setItem('petPhotos_posts', '[]');
+      // 모든 환경에서 게시물 데이터 초기화
+      console.log('🧹 Clearing posts data...');
 
-      // 사용자 정보 복원
-      if (users) localStorage.setItem('petPhotos_users', users);
-      if (currentUser) localStorage.setItem('petPhotos_currentUser', currentUser);
+      localStorage.removeItem(getStorageKey('posts'));
+      localStorage.setItem(getStorageKey('posts'), '[]');
+
+      console.log('✅ Posts data cleared!');
 
       // cleanup 버전 저장
       localStorage.setItem('lastCleanupVersion', CLEANUP_VERSION);
 
-      console.log('✅ Cleanup complete! All corrupted data removed.');
+      console.log('✅ Data cleanup complete!');
     } catch (error) {
       console.error('Cleanup failed:', error);
     }

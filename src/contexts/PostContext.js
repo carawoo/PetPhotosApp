@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { compressImage, formatBase64Size } from '../utils/imageCompression';
+import { getStorageKey } from '../config/environment';
 
 // NotificationContext는 동적으로 import
 let useNotificationHook = null;
@@ -75,11 +76,12 @@ export const PostProvider = ({ children }) => {
 
   const loadPostsFromLocalStorage = () => {
     try {
-      const savedPosts = localStorage.getItem('petPhotos_posts');
+      const POSTS_KEY = getStorageKey('posts');
+      const savedPosts = localStorage.getItem(POSTS_KEY);
 
       if (!savedPosts || savedPosts === 'undefined' || savedPosts === 'null') {
         setPosts([]);
-        localStorage.setItem('petPhotos_posts', '[]');
+        localStorage.setItem(POSTS_KEY, '[]');
         setLoading(false);
         return;
       }
@@ -90,14 +92,14 @@ export const PostProvider = ({ children }) => {
       } catch (parseError) {
         console.error('Invalid JSON, resetting posts');
         setPosts([]);
-        localStorage.setItem('petPhotos_posts', '[]');
+        localStorage.setItem(POSTS_KEY, '[]');
         setLoading(false);
         return;
       }
 
       if (!Array.isArray(parsedPosts)) {
         setPosts([]);
-        localStorage.setItem('petPhotos_posts', '[]');
+        localStorage.setItem(POSTS_KEY, '[]');
         setLoading(false);
         return;
       }
@@ -113,7 +115,7 @@ export const PostProvider = ({ children }) => {
     } catch (error) {
       console.error('Load posts error:', error);
       setPosts([]);
-      localStorage.setItem('petPhotos_posts', '[]');
+      localStorage.setItem(getStorageKey('posts'), '[]');
     } finally {
       setLoading(false);
     }
@@ -121,8 +123,9 @@ export const PostProvider = ({ children }) => {
 
   const savePostsToLocalStorage = (postsToSave) => {
     try {
+      const POSTS_KEY = getStorageKey('posts');
       const dataToSave = JSON.stringify(postsToSave);
-      localStorage.setItem('petPhotos_posts', dataToSave);
+      localStorage.setItem(POSTS_KEY, dataToSave);
     } catch (error) {
       if (
         error.name === 'QuotaExceededError' ||
@@ -137,7 +140,7 @@ export const PostProvider = ({ children }) => {
             .slice(0, 20);
 
           try {
-            localStorage.setItem('petPhotos_posts', JSON.stringify(recentPosts));
+            localStorage.setItem(getStorageKey('posts'), JSON.stringify(recentPosts));
             setPosts(recentPosts);
 
             if (typeof window !== 'undefined' && window.alert) {
