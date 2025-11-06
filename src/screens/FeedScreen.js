@@ -20,10 +20,11 @@ import FloatingActionButton from '../components/FloatingActionButton';
 const { width } = Dimensions.get('window');
 
 export default function FeedScreen() {
-  const { posts, loading, toggleLike, addComment, deletePost } = usePost();
+  const { posts, loading, toggleLike, addComment, updateComment, deleteComment, deletePost } = usePost();
   const { currentUser } = useAuth();
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
+  const [editingComment, setEditingComment] = useState(null);
 
   const handleLike = (postId) => {
     toggleLike(postId);
@@ -31,6 +32,8 @@ export default function FeedScreen() {
 
   const handleComment = (post) => {
     setSelectedPost(post);
+    setEditingComment(null);
+    setCommentText('');
   };
 
   const handleShare = (post) => {
@@ -98,10 +101,74 @@ export default function FeedScreen() {
 
   const submitComment = () => {
     if (commentText.trim() && selectedPost) {
-      addComment(selectedPost.id, commentText.trim());
+      if (editingComment) {
+        // 댓글 수정
+        updateComment(selectedPost.id, editingComment.id, commentText.trim());
+        setEditingComment(null);
+      } else {
+        // 댓글 추가
+        addComment(selectedPost.id, commentText.trim());
+      }
       setCommentText('');
-      setSelectedPost(null);
     }
+  };
+
+  const handleCommentMenu = (comment) => {
+    const isMyComment = comment.authorId === currentUser?.id;
+
+    if (!isMyComment) {
+      Alert.alert('댓글 신고', '신고 기능은 준비 중입니다.');
+      return;
+    }
+
+    Alert.alert(
+      '댓글 옵션',
+      '',
+      [
+        {
+          text: '수정',
+          onPress: () => {
+            setEditingComment(comment);
+            setCommentText(comment.text);
+          },
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => handleDeleteComment(comment),
+        },
+        { text: '취소', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleDeleteComment = (comment) => {
+    Alert.alert(
+      '댓글 삭제',
+      '정말 이 댓글을 삭제하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            deleteComment(selectedPost.id, comment.id);
+            Alert.alert('삭제 완료', '댓글이 삭제되었습니다.');
+          },
+        },
+      ]
+    );
+  };
+
+  const cancelEdit = () => {
+    setEditingComment(null);
+    setCommentText('');
+  };
+
+  const closeCommentModal = () => {
+    setSelectedPost(null);
+    setEditingComment(null);
+    setCommentText('');
   };
 
   const renderPost = ({ item }) => {
@@ -246,7 +313,7 @@ export default function FeedScreen() {
         visible={selectedPost !== null}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setSelectedPost(null)}
+        onRequestClose={closeCommentModal}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -256,7 +323,7 @@ export default function FeedScreen() {
             <TouchableOpacity
               style={styles.overlayBackground}
               activeOpacity={1}
-              onPress={() => setSelectedPost(null)}
+              onPress={closeCommentModal}
             />
             <View
               style={styles.modalContent}
@@ -265,7 +332,7 @@ export default function FeedScreen() {
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>댓글</Text>
-                <TouchableOpacity onPress={() => setSelectedPost(null)}>
+                <TouchableOpacity onPress={closeCommentModal}>
                   <Ionicons name="close" size={28} color="#333" />
                 </TouchableOpacity>
               </View>
@@ -276,7 +343,22 @@ export default function FeedScreen() {
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
                   <View style={styles.commentItem}>
-                    <Text style={styles.commentAuthor}>{item.author}</Text>
+                    <View style={styles.commentHeader}>
+                      <View style={styles.commentLeft}>
+                        <Text style={styles.commentAuthor}>{item.author}</Text>
+                        {item.updatedAt && (
+                          <Text style={styles.editedLabel}>(수정됨)</Text>
+                        )}
+                      </View>
+                      {item.authorId === currentUser?.id && (
+                        <TouchableOpacity
+                          onPress={() => handleCommentMenu(item)}
+                          style={styles.commentMenuButton}
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={styles.commentText}>{item.text}</Text>
                     <Text style={styles.commentTime}>{getTimeAgo(item.createdAt)}</Text>
                   </View>
@@ -288,25 +370,35 @@ export default function FeedScreen() {
               />
 
               {/* 댓글 입력 */}
-              <View style={styles.commentInputContainer}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder="댓글을 입력하세요..."
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  multiline
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <TouchableOpacity
-                  onPress={submitComment}
-                  disabled={!commentText.trim()}
-                >
-                  <Ionicons
-                    name="send"
-                    size={24}
-                    color={commentText.trim() ? "#FF6B6B" : "#ccc"}
+              <View>
+                {editingComment && (
+                  <View style={styles.editingIndicator}>
+                    <Text style={styles.editingText}>댓글 수정 중...</Text>
+                    <TouchableOpacity onPress={cancelEdit}>
+                      <Ionicons name="close" size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                <View style={styles.commentInputContainer}>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder={editingComment ? "댓글 수정..." : "댓글을 입력하세요..."}
+                    value={commentText}
+                    onChangeText={setCommentText}
+                    multiline
+                    onClick={(e) => e.stopPropagation()}
                   />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={submitComment}
+                    disabled={!commentText.trim()}
+                  >
+                    <Ionicons
+                      name={editingComment ? "checkmark" : "send"}
+                      size={24}
+                      color={commentText.trim() ? "#FF6B6B" : "#ccc"}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
@@ -478,9 +570,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f5f5f5',
   },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  commentLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   commentAuthor: {
     fontWeight: 'bold',
-    marginBottom: 4,
+  },
+  editedLabel: {
+    fontSize: 11,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  commentMenuButton: {
+    padding: 4,
   },
   commentText: {
     fontSize: 14,
@@ -495,6 +605,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#999',
     paddingVertical: 32,
+  },
+  editingIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: '#FFF8E1',
+    borderTopWidth: 1,
+    borderTopColor: '#FFE082',
+  },
+  editingText: {
+    fontSize: 13,
+    color: '#F57C00',
+    fontWeight: '500',
   },
   commentInputContainer: {
     flexDirection: 'row',

@@ -103,6 +103,40 @@ export const PostProvider = ({ children }) => {
     savePosts(updatedPosts);
   };
 
+  // 댓글 수정
+  const updateComment = (postId, commentId, newText) => {
+    const updatedPosts = posts.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: post.comments.map(comment =>
+            comment.id === commentId
+              ? { ...comment, text: newText, updatedAt: new Date().toISOString() }
+              : comment
+          ),
+        };
+      }
+      return post;
+    });
+    setPosts(updatedPosts);
+    savePosts(updatedPosts);
+  };
+
+  // 댓글 삭제
+  const deleteComment = (postId, commentId) => {
+    const updatedPosts = posts.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: post.comments.filter(comment => comment.id !== commentId),
+        };
+      }
+      return post;
+    });
+    setPosts(updatedPosts);
+    savePosts(updatedPosts);
+  };
+
   // 게시물 삭제
   const deletePost = (postId) => {
     const updatedPosts = posts.filter(post => post.id !== postId);
@@ -118,6 +152,8 @@ export const PostProvider = ({ children }) => {
         addPost,
         toggleLike,
         addComment,
+        updateComment,
+        deleteComment,
         deletePost,
       }}
     >
