@@ -57,14 +57,28 @@ export default function ProfileScreen({ route, navigation }) {
   const isOwnProfile = currentUser && profileUserId === currentUser?.id;
 
   // 비회원이 프로필 탭을 직접 클릭한 경우 (URL에 userId 없음)
-  React.useEffect(() => {
-    if (!currentUser && !route?.params?.userId) {
-      // 프로필 탭 직접 클릭 -> 로그인 필요
-      if (Platform.OS === 'web') {
-        window.location.href = '/';
-      }
-    }
-  }, [currentUser, route?.params?.userId]);
+  // 로그인 필요 화면 표시
+  if (!currentUser && !route?.params?.userId) {
+    return (
+      <View style={styles.loginRequiredContainer}>
+        <Ionicons name="person-outline" size={80} color="#AEAEB2" />
+        <Text style={styles.loginRequiredTitle}>로그인이 필요합니다</Text>
+        <Text style={styles.loginRequiredText}>
+          프로필을 보려면 로그인이 필요합니다.
+        </Text>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.location.href = '/';
+            }
+          }}
+        >
+          <Text style={styles.loginButtonText}>로그인하기</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // 프로필 사용자 찾기
   const [profileUser, setProfileUser] = useState(null);
@@ -829,6 +843,42 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 32,
+  },
+  loginRequiredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFBFC',
+    paddingHorizontal: 40,
+  },
+  loginRequiredTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  loginRequiredText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  loginButton: {
+    backgroundColor: '#FF3366',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    shadowColor: '#FF3366',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   debugText: {
     fontSize: 12,
