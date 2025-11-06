@@ -356,7 +356,7 @@ export default function FeedScreen() {
                 data={selectedPost?.comments || []}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
-                  <View style={styles.commentItem}>
+                  <View style={styles.commentItem} onClick={(e) => e?.stopPropagation?.()}>
                     <View style={styles.commentHeader}>
                       <View style={styles.commentLeft}>
                         <Text style={styles.commentAuthor}>{item.author}</Text>
@@ -366,8 +366,12 @@ export default function FeedScreen() {
                       </View>
                       {item.authorId === currentUser?.id && (
                         <TouchableOpacity
-                          onPress={() => handleCommentMenu(item)}
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            handleCommentMenu(item);
+                          }}
                           style={styles.commentMenuButton}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
                           <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
                         </TouchableOpacity>
@@ -607,7 +611,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   commentMenuButton: {
-    padding: 4,
+    padding: 8,
+    marginLeft: 8,
   },
   commentText: {
     fontSize: 14,
