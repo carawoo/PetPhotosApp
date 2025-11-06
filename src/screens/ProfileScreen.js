@@ -280,7 +280,11 @@ export default function ProfileScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.username}>{currentUser?.nickname || 'Anonymous'}</Text>

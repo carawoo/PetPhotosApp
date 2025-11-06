@@ -122,7 +122,11 @@ export default function SettingsScreen({ navigation }) {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {/* 계정 정보 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>계정</Text>
