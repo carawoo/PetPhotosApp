@@ -24,6 +24,20 @@ import SettingsScreen from './SettingsScreen';
 import AdminDashboardScreen from './AdminDashboardScreen';
 import { getStorageKey } from '../config/environment';
 
+// Firebase 서비스 (optional)
+let firestoreService = null;
+let useFirebase = false;
+
+try {
+  const firebaseConfig = require('../config/firebase.config');
+  if (firebaseConfig.db) {
+    firestoreService = require('../services/firestore.service');
+    useFirebase = true;
+  }
+} catch (error) {
+  // Firebase not configured
+}
+
 const { width } = Dimensions.get('window');
 const imageSize = width / 3 - 1;
 
@@ -65,31 +79,46 @@ export default function ProfileScreen({ route, navigation }) {
           setProfileUser(currentUser);
         } else if (profileUserId) {
           // 다른 사용자 프로필 (비회원 포함)
-          // 환경에 상관없이 모든 가능한 키를 확인
           let user = null;
 
-          // 1. 현재 환경 키 확인
-          const currentEnvUsers = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
-          user = currentEnvUsers.find(u => u.id === profileUserId);
+          // 1. Firestore에서 먼저 확인 (도메인 간 공유 가능)
+          if (useFirebase && firestoreService) {
+            try {
+              console.log('🔥 Trying to get user from Firestore:', profileUserId);
+              user = await firestoreService.getUser(profileUserId);
+              if (user) {
+                console.log('✅ Found user in Firestore:', user);
+              }
+            } catch (error) {
+              console.warn('⚠️ Firestore getUser failed:', error);
+            }
+          }
 
-          // 2. 못 찾았으면 다른 환경 키들도 확인
+          // 2. Firestore에서 못 찾았으면 localStorage 확인
           if (!user) {
-            const allPossibleKeys = ['petPhotos_users', 'petPhotos_dev_users'];
-            for (const key of allPossibleKeys) {
-              try {
-                const users = JSON.parse(localStorage.getItem(key) || '[]');
-                user = users.find(u => u.id === profileUserId);
-                if (user) {
-                  console.log(`✅ Found user in ${key}`);
-                  break;
+            // 2-1. 현재 환경 키 확인
+            const currentEnvUsers = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
+            user = currentEnvUsers.find(u => u.id === profileUserId);
+
+            // 2-2. 못 찾았으면 다른 환경 키들도 확인
+            if (!user) {
+              const allPossibleKeys = ['petPhotos_users', 'petPhotos_dev_users'];
+              for (const key of allPossibleKeys) {
+                try {
+                  const users = JSON.parse(localStorage.getItem(key) || '[]');
+                  user = users.find(u => u.id === profileUserId);
+                  if (user) {
+                    console.log(`✅ Found user in localStorage: ${key}`);
+                    break;
+                  }
+                } catch (e) {
+                  console.warn(`Failed to check ${key}:`, e);
                 }
-              } catch (e) {
-                console.warn(`Failed to check ${key}:`, e);
               }
             }
           }
 
-          console.log('🔍 Looking for user:', profileUserId, 'Found:', user);
+          console.log('🔍 Final result - Looking for user:', profileUserId, 'Found:', user);
           setProfileUser(user || null);
         }
       } catch (error) {
