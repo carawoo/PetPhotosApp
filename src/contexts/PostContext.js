@@ -26,17 +26,43 @@ export const PostProvider = ({ children }) => {
       const savedPosts = localStorage.getItem('petPhotos_posts');
       if (savedPosts) {
         const parsedPosts = JSON.parse(savedPosts);
-        // blob URL을 가진 게시물 필터링 (페이지 새로고침 후에는 작동하지 않음)
+        // 유효한 게시물만 필터링
         const validPosts = parsedPosts.filter(post => {
-          if (post.imageUrl && post.imageUrl.startsWith('blob:')) {
-            console.warn('Removing post with invalid blob URL:', post.id);
+          // 필수 필드 검증
+          if (!post || typeof post !== 'object') {
+            console.warn('Removing invalid post: not an object');
             return false;
           }
+          if (!post.id || typeof post.id !== 'string') {
+            console.warn('Removing post with invalid id:', post);
+            return false;
+          }
+          if (!post.imageUrl || typeof post.imageUrl !== 'string' || post.imageUrl.trim() === '') {
+            console.warn('Removing post with invalid imageUrl:', post.id);
+            return false;
+          }
+          // blob URL 검증
+          if (post.imageUrl.startsWith('blob:')) {
+            console.warn('Removing post with blob URL:', post.id);
+            return false;
+          }
+          // author 검증
+          if (!post.author || typeof post.author !== 'string' || post.author.trim() === '') {
+            console.warn('Removing post with invalid author:', post.id);
+            return false;
+          }
+          // 기본 필드 존재 여부 확인
+          if (!post.createdAt) {
+            console.warn('Removing post without createdAt:', post.id);
+            return false;
+          }
+
           return true;
         });
 
         // 필터링된 게시물이 원본과 다르면 저장
         if (validPosts.length !== parsedPosts.length) {
+          console.log(`Removed ${parsedPosts.length - validPosts.length} invalid posts`);
           savePosts(validPosts);
         }
 
@@ -46,6 +72,9 @@ export const PostProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to load posts:', error);
+      // 에러 발생 시 빈 배열로 초기화
+      setPosts([]);
+      localStorage.removeItem('petPhotos_posts');
     } finally {
       setLoading(false);
     }
