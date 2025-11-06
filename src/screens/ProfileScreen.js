@@ -414,6 +414,11 @@ export default function ProfileScreen({ route, navigation }) {
         <Text style={styles.errorText}>
           존재하지 않는 프로필입니다.
         </Text>
+        {__DEV__ && (
+          <Text style={styles.debugText}>
+            Debug: userId = {profileUserId}
+          </Text>
+        )}
         <TouchableOpacity
           style={styles.errorButton}
           onPress={() => {
@@ -824,6 +829,14 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 32,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#FF3366',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+    fontFamily: 'monospace',
   },
   errorButton: {
     backgroundColor: '#FF3366',
