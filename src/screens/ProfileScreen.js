@@ -7,27 +7,37 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
+import { usePost } from '../contexts/PostContext';
 
 const { width } = Dimensions.get('window');
 const imageSize = width / 3 - 1;
 
-// 데모 사용자 데이터
-const USER_DATA = {
-  username: '반려동물 사랑',
-  bio: '우리 집 귀여운 멍멍이와 냥냥이를 소개합니다 🐶🐱',
-  profileImage: 'https://via.placeholder.com/150',
-  postsCount: 24,
-  followers: 1234,
-  following: 567,
-  posts: Array(12).fill(null).map((_, i) => ({
-    id: String(i),
-    imageUrl: 'https://via.placeholder.com/400',
-  })),
-};
-
 export default function ProfileScreen() {
+  const { currentUser, logout } = useAuth();
+  const { posts } = usePost();
+
+  // 현재 사용자의 게시물만 필터링
+  const userPosts = posts.filter(post => post.authorId === currentUser?.id);
+
+  const handleLogout = () => {
+    Alert.alert(
+      '로그아웃',
+      '정말 로그아웃하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '로그아웃',
+          onPress: () => logout(),
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
   const renderPost = (post) => (
     <TouchableOpacity key={post.id} style={styles.postItem}>
       <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
@@ -38,9 +48,9 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.username}>{USER_DATA.username}</Text>
-        <TouchableOpacity>
-          <Ionicons name="menu-outline" size={28} color="#333" />
+        <Text style={styles.username}>{currentUser?.nickname || 'Anonymous'}</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={28} color="#333" />
         </TouchableOpacity>
       </View>
 
@@ -48,45 +58,40 @@ export default function ProfileScreen() {
       <View style={styles.profileSection}>
         {/* 프로필 이미지 */}
         <View style={styles.profileImageContainer}>
-          <Image
-            source={{ uri: USER_DATA.profileImage }}
-            style={styles.profileImage}
-          />
-          <TouchableOpacity style={styles.editButton}>
-            <Ionicons name="camera" size={16} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.profileImage}>
+            <Ionicons name="paw" size={40} color="#FF6B6B" />
+          </View>
         </View>
 
         {/* 통계 */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{USER_DATA.postsCount}</Text>
+            <Text style={styles.statNumber}>{userPosts.length}</Text>
             <Text style={styles.statLabel}>게시물</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{USER_DATA.followers}</Text>
-            <Text style={styles.statLabel}>팔로워</Text>
+            <Text style={styles.statNumber}>
+              {userPosts.reduce((sum, post) => sum + post.likes, 0)}
+            </Text>
+            <Text style={styles.statLabel}>좋아요</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{USER_DATA.following}</Text>
-            <Text style={styles.statLabel}>팔로잉</Text>
+            <Text style={styles.statNumber}>
+              {userPosts.reduce((sum, post) => sum + (post.comments?.length || 0), 0)}
+            </Text>
+            <Text style={styles.statLabel}>댓글</Text>
           </View>
         </View>
       </View>
 
       {/* 소개 */}
       <View style={styles.bioSection}>
-        <Text style={styles.bioText}>{USER_DATA.bio}</Text>
-      </View>
-
-      {/* 프로필 편집 버튼 */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity style={styles.editProfileButton}>
-          <Text style={styles.editProfileButtonText}>프로필 편집</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.shareProfileButton}>
-          <Ionicons name="share-outline" size={20} color="#333" />
-        </TouchableOpacity>
+        <Text style={styles.bioText}>
+          반려동물 사진을 공유하는 {currentUser?.nickname} 입니다 🐾
+        </Text>
+        <Text style={styles.joinDate}>
+          가입일: {new Date(currentUser?.createdAt).toLocaleDateString('ko-KR')}
+        </Text>
       </View>
 
       {/* 탭 */}
@@ -104,7 +109,17 @@ export default function ProfileScreen() {
 
       {/* 게시물 그리드 */}
       <View style={styles.postsGrid}>
-        {USER_DATA.posts.map(post => renderPost(post))}
+        {userPosts.length > 0 ? (
+          userPosts.map(post => renderPost(post))
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="images-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>아직 게시물이 없습니다</Text>
+            <Text style={styles.emptySubText}>
+              카메라로 반려동물 사진을 찍어보세요!
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -145,19 +160,9 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     borderWidth: 2,
     borderColor: '#FF6B6B',
-  },
-  editButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FFE5E5',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   statsContainer: {
     flex: 1,
@@ -183,6 +188,11 @@ const styles = StyleSheet.create({
   bioText: {
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  joinDate: {
+    fontSize: 12,
+    color: '#999',
   },
   actionsSection: {
     flexDirection: 'row',
@@ -236,5 +246,24 @@ const styles = StyleSheet.create({
   postImage: {
     width: '100%',
     height: '100%',
+  },
+  emptyContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
 });

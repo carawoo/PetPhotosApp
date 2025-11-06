@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const PostContext = createContext();
 
@@ -13,6 +14,7 @@ export const usePost = () => {
 export const PostProvider = ({ children }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
 
   // 로컬 스토리지에서 데이터 로드
   useEffect(() => {
@@ -25,31 +27,7 @@ export const PostProvider = ({ children }) => {
       if (savedPosts) {
         setPosts(JSON.parse(savedPosts));
       } else {
-        // 초기 데모 데이터
-        const demoPosts = [
-          {
-            id: '1',
-            imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400',
-            petName: '멍멍이',
-            description: '오늘 산책 나왔어요! 🐕',
-            likes: 42,
-            likedBy: [],
-            comments: [],
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400',
-            petName: '냥냥이',
-            description: '낮잠 자는 중 😺',
-            likes: 38,
-            likedBy: [],
-            comments: [],
-            createdAt: new Date().toISOString(),
-          },
-        ];
-        setPosts(demoPosts);
-        savePosts(demoPosts);
+        setPosts([]);
       }
     } catch (error) {
       console.error('Failed to load posts:', error);
@@ -71,6 +49,8 @@ export const PostProvider = ({ children }) => {
     const newPost = {
       ...post,
       id: Date.now().toString(),
+      author: currentUser?.nickname || 'Anonymous',
+      authorId: currentUser?.id || 'anonymous',
       likes: 0,
       likedBy: [],
       comments: [],
@@ -82,7 +62,8 @@ export const PostProvider = ({ children }) => {
   };
 
   // 좋아요 토글
-  const toggleLike = (postId, userId = 'currentUser') => {
+  const toggleLike = (postId) => {
+    const userId = currentUser?.id || 'anonymous';
     const updatedPosts = posts.map(post => {
       if (post.id === postId) {
         const isLiked = post.likedBy.includes(userId);
@@ -105,7 +86,8 @@ export const PostProvider = ({ children }) => {
     const newComment = {
       id: Date.now().toString(),
       text: comment,
-      author: '나',
+      author: currentUser?.nickname || 'Anonymous',
+      authorId: currentUser?.id || 'anonymous',
       createdAt: new Date().toISOString(),
     };
     const updatedPosts = posts.map(post => {

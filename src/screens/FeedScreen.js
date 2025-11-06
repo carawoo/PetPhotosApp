@@ -14,12 +14,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePost } from '../contexts/PostContext';
+import { useAuth } from '../contexts/AuthContext';
 import FloatingActionButton from '../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
 
 export default function FeedScreen() {
   const { posts, loading, toggleLike, addComment } = usePost();
+  const { currentUser } = useAuth();
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
 
@@ -40,7 +42,7 @@ export default function FeedScreen() {
   };
 
   const renderPost = ({ item }) => {
-    const isLiked = item.likedBy?.includes('currentUser');
+    const isLiked = item.likedBy?.includes(currentUser?.id);
 
     return (
       <View style={styles.postContainer}>
@@ -50,7 +52,12 @@ export default function FeedScreen() {
             <View style={styles.avatar}>
               <Ionicons name="paw" size={20} color="#FF6B6B" />
             </View>
-            <Text style={styles.petName}>{item.petName || '반려동물'}</Text>
+            <View>
+              <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>
+              {item.petName && (
+                <Text style={styles.petNameSmall}>{item.petName}</Text>
+              )}
+            </View>
           </View>
           <TouchableOpacity>
             <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
@@ -99,7 +106,7 @@ export default function FeedScreen() {
         {item.description && (
           <View style={styles.captionContainer}>
             <Text style={styles.caption}>
-              <Text style={styles.petName}>{item.petName || '반려동물'}</Text>{' '}
+              <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>{' '}
               {item.description}
             </Text>
           </View>
@@ -287,9 +294,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
   },
-  petName: {
+  authorName: {
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  petNameSmall: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   postImage: {
     width: width,
