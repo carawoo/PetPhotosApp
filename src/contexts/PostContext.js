@@ -25,7 +25,22 @@ export const PostProvider = ({ children }) => {
     try {
       const savedPosts = localStorage.getItem('petPhotos_posts');
       if (savedPosts) {
-        setPosts(JSON.parse(savedPosts));
+        const parsedPosts = JSON.parse(savedPosts);
+        // blob URL을 가진 게시물 필터링 (페이지 새로고침 후에는 작동하지 않음)
+        const validPosts = parsedPosts.filter(post => {
+          if (post.imageUrl && post.imageUrl.startsWith('blob:')) {
+            console.warn('Removing post with invalid blob URL:', post.id);
+            return false;
+          }
+          return true;
+        });
+
+        // 필터링된 게시물이 원본과 다르면 저장
+        if (validPosts.length !== parsedPosts.length) {
+          savePosts(validPosts);
+        }
+
+        setPosts(validPosts);
       } else {
         setPosts([]);
       }
