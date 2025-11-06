@@ -47,6 +47,33 @@ export default function CameraScreen() {
   const { currentUser } = useAuth();
   const { addPost } = usePost();
 
+  // 🔒 로그인 체크 (향후 활성화 예정)
+  // 비로그인 사용자가 카메라 탭에 접근할 때 로그인 안내
+  // 현재는 비활성화 상태 - 필요시 주석 해제하여 사용
+  /*
+  if (!currentUser) {
+    return (
+      <View style={styles.loginRequiredContainer}>
+        <Ionicons name="camera-outline" size={80} color="#AEAEB2" />
+        <Text style={styles.loginRequiredTitle}>로그인이 필요합니다</Text>
+        <Text style={styles.loginRequiredText}>
+          사진을 촬영하고 게시물을 작성하려면{'\n'}로그인이 필요합니다.
+        </Text>
+        <TouchableOpacity
+          style={styles.loginRequiredButton}
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.location.href = '/';
+            }
+          }}
+        >
+          <Text style={styles.loginRequiredButtonText}>로그인하기</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  */
+
   // 기본 필터 목록
   const defaultFilters = [
     { id: 'normal', name: '원본', filter: 'none', isDefault: true },
@@ -1413,6 +1440,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     marginTop: 8,
+    fontWeight: '600',
+  },
+  // 🔒 로그인 필요 화면 스타일 (향후 활성화 예정)
+  loginRequiredContainer: {
+    flex: 1,
+    backgroundColor: '#FAFBFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loginRequiredTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  loginRequiredText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  loginRequiredButton: {
+    backgroundColor: '#FF3366',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 24,
+  },
+  loginRequiredButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });
