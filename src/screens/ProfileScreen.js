@@ -134,9 +134,14 @@ export default function ProfileScreen() {
   const handleShareProfile = async () => {
     console.log('🔗 Share button clicked');
     try {
+      // 웹 URL 생성
+      const profileUrl = Platform.OS === 'web'
+        ? window.location.origin
+        : 'https://peto.real-e.space';
+
       const shareContent = {
         title: `${currentUser?.nickname}의 반려동물 사진첩`,
-        message: `${currentUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개\n\nPeto 앱에서 확인하기: peto://profile/${currentUser?.id}`,
+        message: `${currentUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개\n\n${profileUrl}`,
       };
 
       console.log('📝 Share content:', shareContent.message);
@@ -150,7 +155,7 @@ export default function ProfileScreen() {
             console.log('📋 Using Clipboard API');
             await navigator.clipboard.writeText(shareContent.message);
             console.log('✅ Clipboard copy successful');
-            alert('프로필 링크가 클립보드에 복사되었습니다!');
+            alert('✅ 프로필 링크가 클립보드에 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
           } else {
             throw new Error('Clipboard API not available');
           }
