@@ -10,6 +10,16 @@ import { AdminAuthProvider } from './src/contexts/AdminAuthContext';
 import AdminPortalScreen from './src/screens/AdminPortalScreen';
 import { getStorageKey, isDevelopment } from './src/config/environment';
 
+// 🧪 개발 환경에서 테스트 함수 로드
+if (typeof window !== 'undefined' && isDevelopment()) {
+  import('./src/__tests__/post.test.js').then(module => {
+    window.testLocalStoragePost = module.testLocalStoragePost;
+    window.testFirestorePost = module.testFirestorePost;
+    window.runAllPostTests = module.runAllPostTests;
+    console.log('🧪 게시물 테스트 함수 준비 완료!');
+  });
+}
+
 // 🔥 ONE-TIME CLEANUP - 개발/프로덕션 환경 분리 및 데이터 초기화
 if (typeof localStorage !== 'undefined') {
   const CLEANUP_VERSION = 'v6_reset_all_data';
