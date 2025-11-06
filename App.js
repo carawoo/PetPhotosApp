@@ -6,36 +6,28 @@ import LoginScreen from './src/screens/LoginScreen';
 import { PostProvider } from './src/contexts/PostContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
+// 🔥 FORCE CLEANUP - 즉시 실행 (모듈 로드 시점)
+if (typeof localStorage !== 'undefined') {
+  const cleanupVersion = '1.0.2'; // 강제 재실행
+  const lastCleanup = localStorage.getItem('lastCleanup');
+
+  if (lastCleanup !== cleanupVersion) {
+    console.log('🔥 FORCE CLEANUP: Removing corrupted localStorage data...');
+    const users = localStorage.getItem('petPhotos_users');
+    const currentUser = localStorage.getItem('petPhotos_currentUser');
+
+    localStorage.clear();
+
+    if (users) localStorage.setItem('petPhotos_users', users);
+    if (currentUser) localStorage.setItem('petPhotos_currentUser', currentUser);
+    localStorage.setItem('lastCleanup', cleanupVersion);
+
+    console.log('✅ Cleanup complete!');
+  }
+}
+
 function AppContent() {
   const { currentUser, loading } = useAuth();
-
-  // 손상된 데이터 클리어 (한 번만 실행)
-  useEffect(() => {
-    const cleanupVersion = '1.0.1'; // 버전 업데이트로 강제 재실행
-    const lastCleanup = localStorage.getItem('lastCleanup');
-
-    if (lastCleanup !== cleanupVersion) {
-      console.log('🔧 Cleaning up corrupted localStorage data...');
-      // 사용자 데이터만 유지하고 게시물 데이터 제거
-      const users = localStorage.getItem('petPhotos_users');
-      const currentUserData = localStorage.getItem('petPhotos_currentUser');
-
-      localStorage.clear();
-
-      if (users) {
-        localStorage.setItem('petPhotos_users', users);
-      }
-      if (currentUserData) {
-        localStorage.setItem('petPhotos_currentUser', currentUserData);
-      }
-      localStorage.setItem('lastCleanup', cleanupVersion);
-
-      console.log('✅ Cleanup complete. Page will reload in 1 second...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    }
-  }, []);
 
   if (loading) {
     return (
