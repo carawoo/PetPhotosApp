@@ -22,11 +22,12 @@ import { usePost } from '../contexts/PostContext';
 import { compressImage } from '../utils/imageCompression';
 import SettingsScreen from './SettingsScreen';
 import AdminDashboardScreen from './AdminDashboardScreen';
+import { getStorageKey } from '../config/environment';
 
 const { width } = Dimensions.get('window');
 const imageSize = width / 3 - 1;
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ route }) {
   const { currentUser, logout, updateProfileImage, updateProfileBio } = useAuth();
   const { posts, toggleLike, addComment, deleteComment } = usePost();
   const [uploading, setUploading] = useState(false);
@@ -37,8 +38,30 @@ export default function ProfileScreen() {
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const [showAdminScreen, setShowAdminScreen] = useState(false);
 
-  // 현재 사용자의 게시물만 필터링
-  const userPosts = posts.filter(post => post.authorId === currentUser?.id);
+  // URL에서 받은 userId 또는 현재 로그인 사용자
+  const profileUserId = route?.params?.userId || currentUser?.id;
+  const isOwnProfile = profileUserId === currentUser?.id;
+
+  // 프로필 사용자 찾기
+  const [profileUser, setProfileUser] = useState(null);
+  React.useEffect(() => {
+    if (isOwnProfile) {
+      setProfileUser(currentUser);
+    } else {
+      // localStorage에서 사용자 정보 가져오기
+      try {
+        const users = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
+        const user = users.find(u => u.id === profileUserId);
+        setProfileUser(user || null);
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        setProfileUser(null);
+      }
+    }
+  }, [profileUserId, currentUser, isOwnProfile]);
+
+  // 프로필 사용자의 게시물만 필터링
+  const userPosts = posts.filter(post => post.authorId === profileUserId);
 
   // selectedPost를 posts와 동기화
   React.useEffect(() => {
@@ -138,11 +161,11 @@ export default function ProfileScreen() {
       const baseUrl = Platform.OS === 'web'
         ? window.location.origin
         : 'https://peto.real-e.space';
-      const profileUrl = `${baseUrl}/profile/${currentUser?.id}`;
+      const profileUrl = `${baseUrl}/profile/${profileUser?.id}`;
 
       const shareContent = {
-        title: `${currentUser?.nickname}의 반려동물 사진첩`,
-        message: `${currentUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개\n\n${profileUrl}`,
+        title: `${profileUser?.nickname}의 반려동물 사진첩`,
+        message: `${profileUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개\n\n${profileUrl}`,
       };
 
       console.log('📝 Share content:', shareContent.message);
@@ -293,10 +316,12 @@ export default function ProfileScreen() {
     >
       {/* 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.username}>{currentUser?.nickname || 'Anonymous'}</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={28} color="#333" />
-        </TouchableOpacity>
+        <Text style={styles.username}>{profileUser?.nickname || 'Anonymous'}</Text>
+        {isOwnProfile && (
+          <TouchableOpacity onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={28} color="#333" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* 프로필 정보 */}
@@ -304,25 +329,27 @@ export default function ProfileScreen() {
         {/* 프로필 이미지 */}
         <TouchableOpacity
           style={styles.profileImageContainer}
-          onPress={handleProfileImagePress}
-          disabled={uploading}
-          activeOpacity={0.7}
+          onPress={isOwnProfile ? handleProfileImagePress : null}
+          disabled={uploading || !isOwnProfile}
+          activeOpacity={isOwnProfile ? 0.7 : 1}
         >
           <View style={styles.profileImage}>
             {uploading ? (
               <ActivityIndicator size="large" color="#FF3366" />
-            ) : currentUser?.profileImage ? (
+            ) : profileUser?.profileImage ? (
               <Image
-                source={{ uri: currentUser.profileImage }}
+                source={{ uri: profileUser.profileImage }}
                 style={styles.profileImagePhoto}
               />
             ) : (
               <Ionicons name="paw" size={44} color="#FF3366" />
             )}
           </View>
-          <View style={styles.editImageBadge}>
-            <Ionicons name="camera" size={16} color="#FFFFFF" />
-          </View>
+          {isOwnProfile && (
+            <View style={styles.editImageBadge}>
+              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            </View>
+          )}
         </TouchableOpacity>
 
         {/* 통계 */}
@@ -350,11 +377,13 @@ export default function ProfileScreen() {
       <View style={styles.bioSection}>
         <View style={styles.bioContainer}>
           <Text style={styles.bioText}>
-            {currentUser?.bio || `반려동물 사진을 공유하는 ${currentUser?.nickname} 입니다 🐾`}
+            {profileUser?.bio || `반려동물 사진을 공유하는 ${profileUser?.nickname} 입니다 🐾`}
           </Text>
-          <TouchableOpacity onPress={handleBioEdit} style={styles.editBioButton}>
-            <Ionicons name="create-outline" size={18} color="#8E8E93" />
-          </TouchableOpacity>
+          {isOwnProfile && (
+            <TouchableOpacity onPress={handleBioEdit} style={styles.editBioButton}>
+              <Ionicons name="create-outline" size={18} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -366,22 +395,24 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 추가 메뉴 */}
-      <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => setShowSettingsScreen(true)}>
-          <Ionicons name="settings-outline" size={22} color="#333" />
-          <Text style={styles.menuItemText}>설정</Text>
-          <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
-        </TouchableOpacity>
-        {/* 관리자 메뉴 - 특정 사용자만 보이도록 (예: admin 권한) */}
-        {currentUser?.nickname === '_carawoo' && (
-          <TouchableOpacity style={styles.menuItem} onPress={() => setShowAdminScreen(true)}>
-            <Ionicons name="shield-checkmark-outline" size={22} color="#FF3366" />
-            <Text style={[styles.menuItemText, styles.adminMenuText]}>관리자 대시보드</Text>
+      {/* 추가 메뉴 (본인 프로필일 때만 표시) */}
+      {isOwnProfile && (
+        <View style={styles.menuSection}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowSettingsScreen(true)}>
+            <Ionicons name="settings-outline" size={22} color="#333" />
+            <Text style={styles.menuItemText}>설정</Text>
             <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
           </TouchableOpacity>
-        )}
-      </View>
+          {/* 관리자 메뉴 - 특정 사용자만 보이도록 (예: admin 권한) */}
+          {currentUser?.nickname === '_carawoo' && (
+            <TouchableOpacity style={styles.menuItem} onPress={() => setShowAdminScreen(true)}>
+              <Ionicons name="shield-checkmark-outline" size={22} color="#FF3366" />
+              <Text style={[styles.menuItemText, styles.adminMenuText]}>관리자 대시보드</Text>
+              <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* 탭 */}
       <View style={styles.tabsContainer}>

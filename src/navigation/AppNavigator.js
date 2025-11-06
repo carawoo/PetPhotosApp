@@ -45,8 +45,27 @@ function AnimatedTabIcon({ focused, iconName, color }) {
 }
 
 export default function AppNavigator() {
+  // 웹 URL 라우팅 설정
+  const linking = {
+    prefixes: [
+      Platform.OS === 'web' ? window.location.origin : 'peto://',
+    ],
+    config: {
+      screens: {
+        Feed: '',
+        Camera: 'camera',
+        Profile: {
+          path: 'profile/:userId?',
+          parse: {
+            userId: (userId) => userId,
+          },
+        },
+      },
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color }) => {
