@@ -20,7 +20,7 @@ import FloatingActionButton from '../components/FloatingActionButton';
 const { width } = Dimensions.get('window');
 
 export default function FeedScreen() {
-  const { posts, loading, toggleLike, addComment } = usePost();
+  const { posts, loading, toggleLike, addComment, deletePost } = usePost();
   const { currentUser } = useAuth();
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -31,6 +31,69 @@ export default function FeedScreen() {
 
   const handleComment = (post) => {
     setSelectedPost(post);
+  };
+
+  const handleShare = (post) => {
+    if (navigator.share) {
+      navigator.share({
+        title: `${post.author}님의 ${post.petName || '반려동물'} 사진`,
+        text: post.description || '귀여운 반려동물 사진을 확인해보세요!',
+        url: window.location.href,
+      }).catch(() => {
+        // 공유 취소 시 무시
+      });
+    } else {
+      // 웹 공유 API 미지원 시 클립보드 복사
+      navigator.clipboard.writeText(window.location.href);
+      Alert.alert('링크 복사', '링크가 클립보드에 복사되었습니다!');
+    }
+  };
+
+  const handleNotifications = () => {
+    Alert.alert(
+      '알림',
+      '아직 새로운 알림이 없습니다.',
+      [{ text: '확인' }]
+    );
+  };
+
+  const handlePostMenu = (post) => {
+    const isMyPost = post.authorId === currentUser?.id;
+    const options = isMyPost
+      ? ['삭제', '취소']
+      : ['신고', '취소'];
+
+    Alert.alert(
+      '게시물 옵션',
+      '',
+      isMyPost
+        ? [
+            { text: '삭제', onPress: () => handleDeletePost(post.id), style: 'destructive' },
+            { text: '취소', style: 'cancel' },
+          ]
+        : [
+            { text: '신고', onPress: () => Alert.alert('신고', '신고 기능은 준비 중입니다.') },
+            { text: '취소', style: 'cancel' },
+          ]
+    );
+  };
+
+  const handleDeletePost = (postId) => {
+    Alert.alert(
+      '게시물 삭제',
+      '정말 이 게시물을 삭제하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            deletePost(postId);
+            Alert.alert('삭제 완료', '게시물이 삭제되었습니다.');
+          },
+        },
+      ]
+    );
   };
 
   const submitComment = () => {
@@ -59,7 +122,7 @@ export default function FeedScreen() {
               )}
             </View>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => handlePostMenu(item)}>
             <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
           </TouchableOpacity>
         </View>
@@ -90,11 +153,14 @@ export default function FeedScreen() {
             >
               <Ionicons name="chatbubble-outline" size={26} color="#333" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleShare(item)}
+            >
               <Ionicons name="share-outline" size={26} color="#333" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => Alert.alert('북마크', '북마크 기능은 준비 중입니다!')}>
             <Ionicons name="bookmark-outline" size={26} color="#333" />
           </TouchableOpacity>
         </View>
@@ -155,7 +221,7 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🐾 Pet Photos</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={handleNotifications}>
           <Ionicons name="notifications-outline" size={28} color="#333" />
         </TouchableOpacity>
       </View>
