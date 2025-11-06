@@ -94,15 +94,16 @@ export const AuthProvider = ({ children }) => {
       users.push(newUser);
       saveUsers(users);
 
-      // Firestore에도 저장 (비밀번호 제외)
+      // Firestore에도 저장 (비밀번호 포함 - 브라우저 간 로그인 지원)
       if (useFirebase && firestoreService) {
         try {
           const userDataForFirestore = {
             nickname: newUser.nickname,
+            password: newUser.password, // 브라우저 간 로그인을 위해 비밀번호도 저장
             createdAt: newUser.createdAt,
           };
           await firestoreService.createUser(newUser.id, userDataForFirestore);
-          console.log('✅ User synced to Firestore');
+          console.log('✅ User synced to Firestore (with password)');
         } catch (error) {
           console.warn('⚠️ Firestore user sync failed, continuing with localStorage:', error.message);
         }
@@ -123,12 +124,55 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 로그인
-  const login = (nickname, password, autoLogin = true) => {
+  const login = async (nickname, password, autoLogin = true) => {
     try {
+      // 1. 먼저 localStorage에서 확인
       const users = getAllUsers();
-      const user = users.find(
+      let user = users.find(
         u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password
       );
+
+      // 2. localStorage에 없으면 Firestore에서 확인
+      if (!user && useFirebase && firestoreService) {
+        try {
+          console.log('🔍 Checking Firestore for user...');
+          const { collection, query, where, getDocs } = require('firebase/firestore');
+          const { db } = require('../config/firebase.config');
+
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('nickname', '==', nickname));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const firestoreUser = querySnapshot.docs[0];
+            const firestoreUserData = firestoreUser.data();
+
+            // Firestore에 password 필드가 있는지 확인
+            if (firestoreUserData.password && firestoreUserData.password === password) {
+              console.log('✅ User found in Firestore');
+              user = {
+                id: firestoreUser.id,
+                nickname: firestoreUserData.nickname,
+                password: firestoreUserData.password,
+                createdAt: firestoreUserData.createdAt,
+                profileImage: firestoreUserData.profileImage,
+                bio: firestoreUserData.bio,
+              };
+
+              // localStorage에도 저장 (다음번 로그인 시 빠르게 하기 위해)
+              users.push(user);
+              saveUsers(users);
+              console.log('✅ User synced to localStorage');
+            } else {
+              console.warn('⚠️ User found in Firestore but password missing or incorrect');
+            }
+          } else {
+            console.log('❌ User not found in Firestore');
+          }
+        } catch (error) {
+          console.error('Firestore login check failed:', error);
+        }
+      }
 
       if (!user) {
         return { success: false, error: '닉네임 또는 비밀번호가 올바르지 않습니다.' };

@@ -27,7 +27,7 @@ export default function LoginScreen() {
   const [foundPassword, setFoundPassword] = useState('');
   const { signup, login, isNicknameAvailable } = useAuth();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // 에러 메시지 초기화
     setErrorMessage('');
 
@@ -65,13 +65,13 @@ export default function LoginScreen() {
         return;
       }
 
-      const result = signup(nickname.trim(), password, autoLogin);
+      const result = await signup(nickname.trim(), password, autoLogin);
       if (!result.success) {
         setErrorMessage(result.error);
       }
     } else {
       // 로그인
-      const result = login(nickname.trim(), password, autoLogin);
+      const result = await login(nickname.trim(), password, autoLogin);
       if (!result.success) {
         setErrorMessage(result.error);
       }
