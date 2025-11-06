@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
+import { usePost } from '../contexts/PostContext';
 
 const { width } = Dimensions.get('window');
 const imageSize = width / 3 - 1;
@@ -20,6 +23,10 @@ export default function GalleryScreen() {
   const [photos, setPhotos] = useState([]);
   const [permission, requestPermission] = MediaLibrary.usePermissions();
   const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [petName, setPetName] = useState('');
+  const [description, setDescription] = useState('');
+  const { addPost } = usePost();
 
   useEffect(() => {
     loadPhotos();
@@ -55,29 +62,66 @@ export default function GalleryScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      Alert.alert('성공', '사진을 선택했습니다!');
-      // 여기서 선택한 사진을 업로드하거나 다른 처리를 할 수 있습니다
+      // 선택한 사진으로 업로드 모달 열기
+      setSelectedPhotos([result.assets[0].uri]);
+      setUploadModalVisible(true);
     }
   };
 
-  const togglePhotoSelection = (photoId) => {
+  const togglePhotoSelection = (photoUri) => {
     setSelectedPhotos(prev => {
-      if (prev.includes(photoId)) {
-        return prev.filter(id => id !== photoId);
+      if (prev.includes(photoUri)) {
+        return prev.filter(uri => uri !== photoUri);
       } else {
-        return [...prev, photoId];
+        return [photoUri]; // 하나만 선택 가능하게
       }
     });
   };
 
+  const handleUpload = () => {
+    if (selectedPhotos.length === 0) {
+      Alert.alert('알림', '사진을 선택해주세요.');
+      return;
+    }
+    setUploadModalVisible(true);
+  };
+
+  const confirmUpload = () => {
+    if (!petName.trim()) {
+      Alert.alert('알림', '반려동물 이름을 입력해주세요.');
+      return;
+    }
+
+    // 게시물 추가
+    addPost({
+      imageUrl: selectedPhotos[0],
+      petName: petName.trim(),
+      description: description.trim(),
+    });
+
+    // 초기화
+    setSelectedPhotos([]);
+    setPetName('');
+    setDescription('');
+    setUploadModalVisible(false);
+
+    Alert.alert('성공', '사진이 업로드되었습니다!', [
+      {
+        text: '확인',
+        onPress: () => {
+          // 피드 탭으로 이동하고 싶다면 네비게이션 추가
+        },
+      },
+    ]);
+  };
+
   const renderPhoto = ({ item }) => {
-    const isSelected = selectedPhotos.includes(item.id);
+    const isSelected = selectedPhotos.includes(item.uri);
 
     return (
       <TouchableOpacity
         style={styles.photoContainer}
-        onPress={() => togglePhotoSelection(item.id)}
-        onLongPress={pickImageFromGallery}
+        onPress={() => togglePhotoSelection(item.uri)}
       >
         <Image source={{ uri: item.uri }} style={styles.photo} />
         {isSelected && (
@@ -121,9 +165,7 @@ export default function GalleryScreen() {
           </Text>
           <TouchableOpacity
             style={styles.uploadButton}
-            onPress={() => {
-              Alert.alert('업로드', `${selectedPhotos.length}개의 사진을 업로드하시겠습니까?`);
-            }}
+            onPress={handleUpload}
           >
             <Text style={styles.uploadButtonText}>업로드</Text>
           </TouchableOpacity>
@@ -150,6 +192,58 @@ export default function GalleryScreen() {
           </View>
         }
       />
+
+      {/* 업로드 모달 */}
+      <Modal
+        visible={uploadModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setUploadModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>게시물 업로드</Text>
+              <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {/* 선택한 사진 미리보기 */}
+            {selectedPhotos[0] && (
+              <Image
+                source={{ uri: selectedPhotos[0] }}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
+            )}
+
+            {/* 입력 폼 */}
+            <View style={styles.formContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="반려동물 이름 *"
+                value={petName}
+                onChangeText={setPetName}
+              />
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                placeholder="설명을 입력하세요..."
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+              />
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmUpload}
+              >
+                <Text style={styles.confirmButtonText}>업로드하기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -263,6 +357,63 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  previewImage: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#f0f0f0',
+  },
+  formContainer: {
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  descriptionInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  confirmButton: {
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  confirmButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
