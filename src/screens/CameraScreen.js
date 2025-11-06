@@ -718,7 +718,7 @@ export default function CameraScreen() {
 
           <TouchableOpacity
             style={styles.webCaptureButton}
-            onPress={openNativeCamera}
+            onPress={captureWebPhoto}
           >
             <View style={styles.webCaptureButtonInner}>
               <Ionicons name="camera" size={32} color="#FF3366" />
