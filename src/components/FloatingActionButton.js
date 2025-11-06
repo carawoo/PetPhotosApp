@@ -71,14 +71,35 @@ export default function FloatingActionButton() {
     }
   };
 
-  const handleUpload = () => {
+  const convertBlobToBase64 = async (blobUrl) => {
+    try {
+      const response = await fetch(blobUrl);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert blob to base64:', error);
+      return blobUrl;
+    }
+  };
+
+  const handleUpload = async () => {
     if (!petName.trim()) {
       Alert.alert('알림', '반려동물 이름을 입력해주세요.');
       return;
     }
 
+    // blob URL을 base64로 변환
+    const imageUrl = selectedImage.startsWith('blob:')
+      ? await convertBlobToBase64(selectedImage)
+      : selectedImage;
+
     addPost({
-      imageUrl: selectedImage,
+      imageUrl,
       petName: petName.trim(),
       description: description.trim(),
     });
