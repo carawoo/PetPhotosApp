@@ -223,6 +223,35 @@ export default function CameraScreen() {
     }
   };
 
+  // 이미지에 필터 적용
+  const applyFilterToImage = (imageDataUrl, filterStyle) => {
+    return new Promise((resolve) => {
+      if (filterStyle === 'none') {
+        resolve(imageDataUrl);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        // 필터 적용
+        ctx.filter = filterStyle;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0);
+
+        // 최고 품질로 변환
+        const filteredDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+        resolve(filteredDataUrl);
+      };
+      img.src = imageDataUrl;
+    });
+  };
+
   // 네이티브 카메라로 직접 촬영
   const openNativeCamera = () => {
     const input = document.createElement('input');
@@ -234,8 +263,26 @@ export default function CameraScreen() {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-          setCapturedPhoto({ uri: event.target.result });
+        reader.onload = async (event) => {
+          let imageUri = event.target.result;
+
+          // 선택된 필터 적용
+          let filterStyle = 'none';
+          if (selectedFilter === 'custom') {
+            // 커스텀 필터 적용
+            filterStyle = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%)`;
+          } else {
+            const currentFilter = filters.find(f => f.id === selectedFilter);
+            if (currentFilter) {
+              filterStyle = currentFilter.filter;
+            }
+          }
+
+          if (filterStyle !== 'none') {
+            imageUri = await applyFilterToImage(imageUri, filterStyle);
+          }
+
+          setCapturedPhoto({ uri: imageUri });
           setShowPostForm(true);
 
           // 카메라 스트림 정지
@@ -284,8 +331,50 @@ export default function CameraScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setCapturedPhoto(result.assets[0]);
+        let imageUri = result.assets[0].uri;
+
+        // 웹에서 선택한 필터 적용
+        if (Platform.OS === 'web') {
+          // Base64로 변환 필요 시
+          if (!imageUri.startsWith('data:')) {
+            try {
+              const response = await fetch(imageUri);
+              const blob = await response.blob();
+              imageUri = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+              });
+            } catch (e) {
+              console.error('Image conversion failed:', e);
+            }
+          }
+
+          // 필터 적용
+          let filterStyle = 'none';
+          if (selectedFilter === 'custom') {
+            // 커스텀 필터 적용
+            filterStyle = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%)`;
+          } else {
+            const currentFilter = filters.find(f => f.id === selectedFilter);
+            if (currentFilter) {
+              filterStyle = currentFilter.filter;
+            }
+          }
+
+          if (filterStyle !== 'none') {
+            imageUri = await applyFilterToImage(imageUri, filterStyle);
+          }
+        }
+
+        setCapturedPhoto({ uri: imageUri });
         setShowPostForm(true);
+
+        // 웹 카메라 스트림 정지
+        if (Platform.OS === 'web' && webStream) {
+          webStream.getTracks().forEach(track => track.stop());
+          setWebStream(null);
+        }
       }
     } catch (error) {
       console.error('이미지 선택 오류:', error);
