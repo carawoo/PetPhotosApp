@@ -5,8 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Screens
 import FeedScreen from '../screens/FeedScreen';
-import ShortsScreen from '../screens/ShortsScreen';
-import CameraScreen from '../screens/CameraScreen';
 import GalleryScreen from '../screens/GalleryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -22,10 +20,6 @@ export default function AppNavigator() {
 
             if (route.name === 'Feed') {
               iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Shorts') {
-              iconName = focused ? 'play-circle' : 'play-circle-outline';
-            } else if (route.name === 'Camera') {
-              iconName = focused ? 'camera' : 'camera-outline';
             } else if (route.name === 'Gallery') {
               iconName = focused ? 'images' : 'images-outline';
             } else if (route.name === 'Profile') {
@@ -43,16 +37,6 @@ export default function AppNavigator() {
           name="Feed"
           component={FeedScreen}
           options={{ tabBarLabel: '피드' }}
-        />
-        <Tab.Screen
-          name="Shorts"
-          component={ShortsScreen}
-          options={{ tabBarLabel: '숏츠' }}
-        />
-        <Tab.Screen
-          name="Camera"
-          component={CameraScreen}
-          options={{ tabBarLabel: '카메라' }}
         />
         <Tab.Screen
           name="Gallery"

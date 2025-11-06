@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePost } from '../contexts/PostContext';
+import FloatingActionButton from '../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
 
@@ -232,6 +233,9 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* 플로팅 액션 버튼 */}
+      <FloatingActionButton />
     </View>
   );
 }
