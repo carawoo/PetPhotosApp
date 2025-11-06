@@ -8,40 +8,6 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { AdminAuthProvider } from './src/contexts/AdminAuthContext';
 import AdminPortalScreen from './src/screens/AdminPortalScreen';
-import { getStorageKey, isDevelopment } from './src/config/environment';
-
-// 🔥 ONE-TIME CLEANUP - 개발/프로덕션 환경 분리 및 데이터 초기화
-if (typeof localStorage !== 'undefined') {
-  const CLEANUP_VERSION = 'v6_reset_all_data';
-  const lastCleanup = localStorage.getItem('lastCleanupVersion');
-
-  if (lastCleanup !== CLEANUP_VERSION) {
-    console.log('🔥 Running data cleanup for all environments...');
-
-    try {
-      const isDev = isDevelopment();
-      const envLabel = isDev ? 'DEVELOPMENT' : 'PRODUCTION';
-
-      console.log(`📍 Environment: ${envLabel}`);
-      console.log(`🗂️  Storage prefix: ${isDev ? 'petPhotos_dev_' : 'petPhotos_'}`);
-
-      // 모든 환경에서 게시물 데이터 초기화
-      console.log('🧹 Clearing posts data...');
-
-      localStorage.removeItem(getStorageKey('posts'));
-      localStorage.setItem(getStorageKey('posts'), '[]');
-
-      console.log('✅ Posts data cleared!');
-
-      // cleanup 버전 저장
-      localStorage.setItem('lastCleanupVersion', CLEANUP_VERSION);
-
-      console.log('✅ Data cleanup complete!');
-    } catch (error) {
-      console.error('Cleanup failed:', error);
-    }
-  }
-}
 
 function AppContent() {
   const { currentUser, loading, useFirebase } = useAuth();

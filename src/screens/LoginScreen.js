@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import { getStorageKey } from '../config/environment';
 
 export default function LoginScreen() {
   const [isSignup, setIsSignup] = useState(false);
@@ -60,7 +59,8 @@ export default function LoginScreen() {
       }
 
       // 닉네임 중복 체크
-      if (!isNicknameAvailable(nickname.trim())) {
+      const available = await isNicknameAvailable(nickname.trim());
+      if (!available) {
         setErrorMessage('이미 사용 중인 닉네임입니다.\n다른 닉네임을 선택해주세요.');
         return;
       }
@@ -86,7 +86,7 @@ export default function LoginScreen() {
     setErrorMessage('');
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!forgotNickname.trim()) {
       if (Platform.OS === 'web') {
         alert('닉네임을 입력해주세요.');
@@ -96,17 +96,32 @@ export default function LoginScreen() {
       return;
     }
 
-    // localStorage에서 사용자 찾기
-    const users = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
-    const user = users.find(u => u.nickname === forgotNickname.trim());
+    try {
+      // Firestore에서 사용자 찾기
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../config/firebase.config');
 
-    if (user) {
-      setFoundPassword(user.password);
-    } else {
-      if (Platform.OS === 'web') {
-        alert('해당 닉네임을 찾을 수 없습니다.');
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('nickname', '==', forgotNickname.trim()));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userData = querySnapshot.docs[0].data();
+        setFoundPassword(userData.password || '비밀번호 없음');
       } else {
-        Alert.alert('알림', '해당 닉네임을 찾을 수 없습니다.');
+        if (Platform.OS === 'web') {
+          alert('해당 닉네임을 찾을 수 없습니다.');
+        } else {
+          Alert.alert('알림', '해당 닉네임을 찾을 수 없습니다.');
+        }
+        setFoundPassword('');
+      }
+    } catch (error) {
+      console.error('Failed to find password:', error);
+      if (Platform.OS === 'web') {
+        alert('비밀번호 찾기에 실패했습니다.');
+      } else {
+        Alert.alert('오류', '비밀번호 찾기에 실패했습니다.');
       }
       setFoundPassword('');
     }

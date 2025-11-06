@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { compressImage, formatBase64Size } from '../utils/imageCompression';
-import { getStorageKey } from '../config/environment';
 
 // NotificationContext는 동적으로 import
 let useNotificationHook = null;
@@ -56,144 +55,22 @@ export const PostProvider = ({ children }) => {
     }
   }
 
-  // 데이터 로드
+  // 데이터 로드 (Firestore 전용)
   useEffect(() => {
-    if (useFirebase) {
-      // Firebase 실시간 리스너
-      const unsubscribe = firestoreService.subscribeToPosts((fetchedPosts) => {
-        setPosts(fetchedPosts);
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    } else {
-      // localStorage에서 로드
-      loadPostsFromLocalStorage();
-    }
-  }, [useFirebase]);
-
-  // ====== localStorage 함수들 ======
-
-  const loadPostsFromLocalStorage = () => {
-    try {
-      const POSTS_KEY = getStorageKey('posts');
-      const savedPosts = localStorage.getItem(POSTS_KEY);
-
-      if (!savedPosts || savedPosts === 'undefined' || savedPosts === 'null') {
-        setPosts([]);
-        localStorage.setItem(POSTS_KEY, '[]');
-        setLoading(false);
-        return;
-      }
-
-      let parsedPosts;
-      try {
-        parsedPosts = JSON.parse(savedPosts);
-      } catch (parseError) {
-        console.error('Invalid JSON, resetting posts');
-        setPosts([]);
-        localStorage.setItem(POSTS_KEY, '[]');
-        setLoading(false);
-        return;
-      }
-
-      if (!Array.isArray(parsedPosts)) {
-        setPosts([]);
-        localStorage.setItem(POSTS_KEY, '[]');
-        setLoading(false);
-        return;
-      }
-
-      const validPosts = filterValidPosts(parsedPosts);
-
-      if (validPosts.length !== parsedPosts.length) {
-        console.log(`Filtered out ${parsedPosts.length - validPosts.length} invalid posts`);
-        savePostsToLocalStorage(validPosts);
-      }
-
-      setPosts(validPosts);
-    } catch (error) {
-      console.error('Load posts error:', error);
-      setPosts([]);
-      localStorage.setItem(getStorageKey('posts'), '[]');
-    } finally {
+    if (!useFirebase) {
+      console.error('❌ Firestore is required');
       setLoading(false);
+      return;
     }
-  };
 
-  const savePostsToLocalStorage = (postsToSave) => {
-    try {
-      const POSTS_KEY = getStorageKey('posts');
-      const dataToSave = JSON.stringify(postsToSave);
-      localStorage.setItem(POSTS_KEY, dataToSave);
-    } catch (error) {
-      if (
-        error.name === 'QuotaExceededError' ||
-        error.code === 22 ||
-        error.code === 1014
-      ) {
-        console.error('localStorage quota exceeded');
-
-        if (postsToSave.length > 10) {
-          const recentPosts = [...postsToSave]
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, 20);
-
-          try {
-            localStorage.setItem(getStorageKey('posts'), JSON.stringify(recentPosts));
-            setPosts(recentPosts);
-
-            if (typeof window !== 'undefined' && window.alert) {
-              window.alert(
-                '저장 공간이 부족하여 오래된 게시물이 자동으로 삭제되었습니다.\n' +
-                `최근 ${recentPosts.length}개의 게시물만 유지됩니다.`
-              );
-            }
-            return;
-          } catch (retryError) {
-            console.error('Failed to save even after cleanup:', retryError);
-          }
-        }
-
-        if (typeof window !== 'undefined' && window.alert) {
-          window.alert(
-            '저장 공간이 부족합니다.\n' +
-            '브라우저 설정에서 사이트 데이터를 삭제하거나,\n' +
-            '일부 게시물을 삭제해주세요.'
-          );
-        }
-      } else {
-        console.error('Failed to save posts:', error);
-        if (typeof window !== 'undefined' && window.alert) {
-          window.alert('게시물 저장 중 오류가 발생했습니다.');
-        }
-      }
-    }
-  };
-
-  const filterValidPosts = (postsArray) => {
-    return postsArray.filter(post => {
-      if (!post?.id || !post?.imageUrl || !post?.author || !post?.petName || !post?.createdAt) {
-        return false;
-      }
-      if (!post.imageUrl.startsWith('data:') && !post.imageUrl.startsWith('http://') && !post.imageUrl.startsWith('https://')) {
-        console.warn('Invalid image URL format:', post.id, post.imageUrl.substring(0, 50));
-        return false;
-      }
-      if (post.description) {
-        if (typeof post.description !== 'string' || post.description.trim().length < 2) {
-          return false;
-        }
-      }
-      return true;
+    // Firebase 실시간 리스너
+    const unsubscribe = firestoreService.subscribeToPosts((fetchedPosts) => {
+      setPosts(fetchedPosts);
+      setLoading(false);
     });
-  };
 
-  const updateAndSaveToLocalStorage = (updatedPosts) => {
-    const validPosts = filterValidPosts(updatedPosts);
-    setPosts(validPosts);
-    savePostsToLocalStorage(validPosts);
-  };
+    return () => unsubscribe();
+  }, [useFirebase]);
 
   // ====== 게시물 추가 ======
 
@@ -241,26 +118,15 @@ export const PostProvider = ({ children }) => {
         authorId: currentUser?.id || 'anonymous',
       };
 
-      if (useFirebase) {
-        // Firebase에 저장
-        setUploadProgress(95);
-        await firestoreService.createPost(newPostData);
-        setUploadProgress(100);
-        console.log('✅ Post saved to Firestore');
-      } else {
-        // localStorage에 저장
-        const newPost = {
-          ...newPostData,
-          id: Date.now().toString(),
-          likes: 0,
-          likedBy: [],
-          comments: [],
-          createdAt: new Date().toISOString(),
-        };
-        const updatedPosts = [newPost, ...posts];
-        updateAndSaveToLocalStorage(updatedPosts);
-        setUploadProgress(100);
+      if (!useFirebase) {
+        throw new Error('Firestore가 필요합니다');
       }
+
+      // Firebase에 저장
+      setUploadProgress(95);
+      await firestoreService.createPost(newPostData);
+      setUploadProgress(100);
+      console.log('✅ Post saved to Firestore');
     } catch (error) {
       console.error('Add post error:', error);
       throw error;
@@ -272,17 +138,12 @@ export const PostProvider = ({ children }) => {
   // ====== 게시물 수정 ======
 
   const updatePost = async (postId, updates) => {
+    if (!useFirebase) {
+      throw new Error('Firestore가 필요합니다');
+    }
+
     try {
-      if (useFirebase) {
-        await firestoreService.updatePost(postId, updates);
-      } else {
-        const updatedPosts = posts.map(post =>
-          post.id === postId
-            ? { ...post, ...updates, updatedAt: new Date().toISOString() }
-            : post
-        );
-        updateAndSaveToLocalStorage(updatedPosts);
-      }
+      await firestoreService.updatePost(postId, updates);
     } catch (error) {
       console.error('Update post error:', error);
       throw error;
@@ -292,13 +153,12 @@ export const PostProvider = ({ children }) => {
   // ====== 게시물 삭제 ======
 
   const deletePost = async (postId) => {
+    if (!useFirebase) {
+      throw new Error('Firestore가 필요합니다');
+    }
+
     try {
-      if (useFirebase) {
-        await firestoreService.deletePost(postId);
-      } else {
-        const updatedPosts = posts.filter(post => post.id !== postId);
-        updateAndSaveToLocalStorage(updatedPosts);
-      }
+      await firestoreService.deletePost(postId);
     } catch (error) {
       console.error('Delete post error:', error);
       throw error;
@@ -347,23 +207,11 @@ export const PostProvider = ({ children }) => {
         });
       }
 
-      if (useFirebase) {
-        await firestoreService.toggleLike(postId, userId, isLiked);
-      } else {
-        const updatedPosts = posts.map(post => {
-          if (post.id === postId) {
-            return {
-              ...post,
-              likes: isLiked ? (post.likes || 1) - 1 : (post.likes || 0) + 1,
-              likedBy: isLiked
-                ? (post.likedBy || []).filter(id => id !== userId)
-                : [...(post.likedBy || []), userId],
-            };
-          }
-          return post;
-        });
-        updateAndSaveToLocalStorage(updatedPosts);
+      if (!useFirebase) {
+        throw new Error('Firestore가 필요합니다');
       }
+
+      await firestoreService.toggleLike(postId, userId, isLiked);
     } catch (error) {
       console.error('Toggle like error:', error);
       throw error;
@@ -398,16 +246,11 @@ export const PostProvider = ({ children }) => {
         });
       }
 
-      if (useFirebase) {
-        await firestoreService.addComment(postId, newComment);
-      } else {
-        const updatedPosts = posts.map(post =>
-          post.id === postId
-            ? { ...post, comments: [...(post.comments || []), newComment] }
-            : post
-        );
-        updateAndSaveToLocalStorage(updatedPosts);
+      if (!useFirebase) {
+        throw new Error('Firestore가 필요합니다');
       }
+
+      await firestoreService.addComment(postId, newComment);
     } catch (error) {
       console.error('Add comment error:', error);
       throw error;
@@ -417,24 +260,12 @@ export const PostProvider = ({ children }) => {
   // ====== 댓글 수정 ======
 
   const updateComment = async (postId, commentId, newText) => {
+    if (!useFirebase) {
+      throw new Error('Firestore가 필요합니다');
+    }
+
     try {
-      if (useFirebase) {
-        await firestoreService.updateComment(postId, commentId, newText);
-      } else {
-        const updatedPosts = posts.map(post =>
-          post.id === postId
-            ? {
-                ...post,
-                comments: (post.comments || []).map(comment =>
-                  comment.id === commentId
-                    ? { ...comment, text: newText, updatedAt: new Date().toISOString() }
-                    : comment
-                ),
-              }
-            : post
-        );
-        updateAndSaveToLocalStorage(updatedPosts);
-      }
+      await firestoreService.updateComment(postId, commentId, newText);
     } catch (error) {
       console.error('Update comment error:', error);
       throw error;
@@ -444,17 +275,12 @@ export const PostProvider = ({ children }) => {
   // ====== 댓글 삭제 ======
 
   const deleteComment = async (postId, commentId) => {
+    if (!useFirebase) {
+      throw new Error('Firestore가 필요합니다');
+    }
+
     try {
-      if (useFirebase) {
-        await firestoreService.deleteComment(postId, commentId);
-      } else {
-        const updatedPosts = posts.map(post =>
-          post.id === postId
-            ? { ...post, comments: (post.comments || []).filter(c => c.id !== commentId) }
-            : post
-        );
-        updateAndSaveToLocalStorage(updatedPosts);
-      }
+      await firestoreService.deleteComment(postId, commentId);
     } catch (error) {
       console.error('Delete comment error:', error);
       throw error;
