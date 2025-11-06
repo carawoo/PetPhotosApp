@@ -8,6 +8,8 @@ import {
   Alert,
   TextInput,
   Image,
+  ActivityIndicator,
+  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +24,7 @@ export default function FloatingActionButton() {
   const [petName, setPetName] = useState('');
   const [description, setDescription] = useState('');
   const [facing, setFacing] = useState('back');
+  const [uploading, setUploading] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = React.useRef(null);
   const { addPost } = usePost();
@@ -74,16 +77,32 @@ export default function FloatingActionButton() {
   const convertBlobToBase64 = async (blobUrl) => {
     try {
       const response = await fetch(blobUrl);
+      if (!response.ok) {
+        throw new Error('이미지를 불러올 수 없습니다.');
+      }
+
       const blob = await response.blob();
+
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
+
+        reader.onloadend = () => {
+          if (reader.result && typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('이미지 변환에 실패했습니다.'));
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error('이미지 읽기에 실패했습니다.'));
+        };
+
         reader.readAsDataURL(blob);
       });
     } catch (error) {
       console.error('Failed to convert blob to base64:', error);
-      return blobUrl;
+      throw error; // 에러를 다시 던져서 상위에서 처리하도록
     }
   };
 
@@ -93,24 +112,52 @@ export default function FloatingActionButton() {
       return;
     }
 
-    // blob URL을 base64로 변환
-    const imageUrl = selectedImage.startsWith('blob:')
-      ? await convertBlobToBase64(selectedImage)
-      : selectedImage;
+    if (!selectedImage) {
+      Alert.alert('알림', '이미지를 선택해주세요.');
+      return;
+    }
 
-    addPost({
-      imageUrl,
-      petName: petName.trim(),
-      description: description.trim(),
-    });
+    setUploading(true);
 
-    // 초기화
-    setSelectedImage(null);
-    setPetName('');
-    setDescription('');
-    setUploadModalVisible(false);
+    try {
+      // blob URL을 base64로 변환 (필수)
+      let imageUrl = selectedImage;
 
-    Alert.alert('성공', '게시물이 업로드되었습니다!');
+      if (selectedImage.startsWith('blob:')) {
+        try {
+          imageUrl = await convertBlobToBase64(selectedImage);
+        } catch (conversionError) {
+          throw new Error('이미지 변환에 실패했습니다. 다시 시도해주세요.');
+        }
+      }
+
+      // base64 형식 검증
+      if (!imageUrl.startsWith('data:image/')) {
+        throw new Error('올바른 이미지 형식이 아닙니다.');
+      }
+
+      addPost({
+        imageUrl,
+        petName: petName.trim(),
+        description: description.trim(),
+      });
+
+      // 초기화
+      setSelectedImage(null);
+      setPetName('');
+      setDescription('');
+      setUploadModalVisible(false);
+
+      Alert.alert('성공', '게시물이 업로드되었습니다!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert(
+        '업로드 실패',
+        error.message || '게시물 업로드 중 오류가 발생했습니다. 다시 시도해주세요.'
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -203,11 +250,15 @@ export default function FloatingActionButton() {
           />
           <View
             style={styles.uploadModalContent}
-            onClick={(e) => e.stopPropagation()}
+            onStartShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
           >
             <View style={styles.uploadModalHeader}>
-              <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+              <TouchableOpacity
+                onPress={() => setUploadModalVisible(false)}
+                disabled={uploading}
+              >
+                <Ionicons name="close" size={28} color={uploading ? "#ccc" : "#333"} />
               </TouchableOpacity>
             </View>
 
@@ -225,7 +276,8 @@ export default function FloatingActionButton() {
                 placeholder="반려동물 이름 *"
                 value={petName}
                 onChangeText={setPetName}
-                onClick={(e) => e.stopPropagation()}
+                onStartShouldSetResponder={() => true}
+                editable={!uploading}
               />
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
@@ -234,10 +286,22 @@ export default function FloatingActionButton() {
                 onChangeText={setDescription}
                 multiline
                 numberOfLines={4}
-                onClick={(e) => e.stopPropagation()}
+                onStartShouldSetResponder={() => true}
+                editable={!uploading}
               />
-              <TouchableOpacity style={styles.uploadButton} onPress={handleUpload}>
-                <Ionicons name="checkmark" size={24} color="#fff" />
+              <TouchableOpacity
+                style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+                onPress={handleUpload}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <>
+                    <ActivityIndicator size="small" color="#fff" />
+                    <Text style={styles.uploadingText}>업로드 중...</Text>
+                  </>
+                ) : (
+                  <Text style={styles.uploadButtonText}>업로드</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -393,8 +457,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
     height: 56,
     borderRadius: 28,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+    gap: 8,
+  },
+  uploadButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  uploadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

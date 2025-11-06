@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix LocalStorage</title>
+</head>
+<body>
+    <h1>LocalStorage Fix Tool</h1>
+    <button onclick="fixStorage()">Fix Storage Now</button>
+    <pre id="output"></pre>
+    
+    <script>
+    function fixStorage() {
+        const output = document.getElementById('output');
+        output.innerHTML = 'Starting cleanup...\n';
+        
+        // 사용자 정보 백업
+        const users = localStorage.getItem('petPhotos_users');
+        const currentUser = localStorage.getItem('petPhotos_currentUser');
+        
+        output.innerHTML += 'Backing up user data...\n';
+        output.innerHTML += 'Users: ' + (users ? 'Found' : 'None') + '\n';
+        output.innerHTML += 'Current User: ' + (currentUser ? 'Found' : 'None') + '\n\n';
+        
+        // 완전 삭제
+        localStorage.clear();
+        output.innerHTML += 'LocalStorage cleared!\n\n';
+        
+        // 사용자 정보만 복원
+        if (users) localStorage.setItem('petPhotos_users', users);
+        if (currentUser) localStorage.setItem('petPhotos_currentUser', currentUser);
+        
+        // Posts 빈 배열로 초기화
+        localStorage.setItem('petPhotos_posts', '[]');
+        localStorage.setItem('lastCleanup', '1.0.3');
+        
+        output.innerHTML += 'Restored:\n';
+        output.innerHTML += '- Users: ' + (users ? 'Yes' : 'No') + '\n';
+        output.innerHTML += '- Current User: ' + (currentUser ? 'Yes' : 'No') + '\n';
+        output.innerHTML += '- Posts: [] (empty)\n';
+        output.innerHTML += '- Cleanup version: 1.0.3\n\n';
+        
+        output.innerHTML += '✅ DONE! Now refresh the main app (localhost:8082)\n';
+    }
+    </script>
+</body>
+</html>
