@@ -20,9 +20,12 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = () => {
     try {
-      const user = localStorage.getItem('petPhotos_currentUser');
-      if (user) {
-        setCurrentUser(JSON.parse(user));
+      const autoLogin = localStorage.getItem('petPhotos_autoLogin');
+      if (autoLogin === 'true') {
+        const user = localStorage.getItem('petPhotos_currentUser');
+        if (user) {
+          setCurrentUser(JSON.parse(user));
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -58,7 +61,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 회원가입
-  const signup = (nickname, password) => {
+  const signup = (nickname, password, autoLogin = true) => {
     try {
       // 닉네임 중복 체크
       if (!isNicknameAvailable(nickname)) {
@@ -81,6 +84,7 @@ export const AuthProvider = ({ children }) => {
       delete userWithoutPassword.password;
       setCurrentUser(userWithoutPassword);
       localStorage.setItem('petPhotos_currentUser', JSON.stringify(userWithoutPassword));
+      localStorage.setItem('petPhotos_autoLogin', autoLogin.toString());
 
       return { success: true };
     } catch (error) {
@@ -90,7 +94,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 로그인
-  const login = (nickname, password) => {
+  const login = (nickname, password, autoLogin = true) => {
     try {
       const users = getAllUsers();
       const user = users.find(
@@ -105,6 +109,7 @@ export const AuthProvider = ({ children }) => {
       delete userWithoutPassword.password;
       setCurrentUser(userWithoutPassword);
       localStorage.setItem('petPhotos_currentUser', JSON.stringify(userWithoutPassword));
+      localStorage.setItem('petPhotos_autoLogin', autoLogin.toString());
 
       return { success: true };
     } catch (error) {
@@ -119,6 +124,60 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('petPhotos_currentUser');
   };
 
+  // 프로필 이미지 업데이트
+  const updateProfileImage = (imageUrl) => {
+    try {
+      if (!currentUser) return { success: false, error: '로그인이 필요합니다.' };
+
+      const updatedUser = { ...currentUser, profileImage: imageUrl };
+
+      // 현재 사용자 업데이트
+      setCurrentUser(updatedUser);
+      localStorage.setItem('petPhotos_currentUser', JSON.stringify(updatedUser));
+
+      // 사용자 목록에서도 업데이트
+      const users = getAllUsers();
+      const updatedUsers = users.map(user =>
+        user.id === currentUser.id
+          ? { ...user, profileImage: imageUrl }
+          : user
+      );
+      saveUsers(updatedUsers);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to update profile image:', error);
+      return { success: false, error: '프로필 이미지 업데이트 실패' };
+    }
+  };
+
+  // 프로필 소개글 업데이트
+  const updateProfileBio = (bio) => {
+    try {
+      if (!currentUser) return { success: false, error: '로그인이 필요합니다.' };
+
+      const updatedUser = { ...currentUser, bio };
+
+      // 현재 사용자 업데이트
+      setCurrentUser(updatedUser);
+      localStorage.setItem('petPhotos_currentUser', JSON.stringify(updatedUser));
+
+      // 사용자 목록에서도 업데이트
+      const users = getAllUsers();
+      const updatedUsers = users.map(user =>
+        user.id === currentUser.id
+          ? { ...user, bio }
+          : user
+      );
+      saveUsers(updatedUsers);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to update bio:', error);
+      return { success: false, error: '프로필 소개글 업데이트 실패' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -128,6 +187,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         isNicknameAvailable,
+        updateProfileImage,
+        updateProfileBio,
       }}
     >
       {children}

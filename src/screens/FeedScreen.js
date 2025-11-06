@@ -12,10 +12,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePost } from '../contexts/PostContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import FloatingActionButton from '../components/FloatingActionButton';
 
 const { width } = Dimensions.get('window');
@@ -23,6 +25,7 @@ const { width } = Dimensions.get('window');
 export default function FeedScreen() {
   const { posts, loading, toggleLike, addComment, updateComment, deleteComment, deletePost, updatePost } = usePost();
   const { currentUser } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
@@ -33,6 +36,12 @@ export default function FeedScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [menuComment, setMenuComment] = useState(null);
   const [showDeleteCommentConfirm, setShowDeleteCommentConfirm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState(null); // 'post' or 'comment'
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetail, setReportDetail] = useState('');
 
   // selectedPost를 posts와 동기화
   React.useEffect(() => {
@@ -54,28 +63,136 @@ export default function FeedScreen() {
     setCommentText('');
   };
 
-  const handleShare = (post) => {
-    if (navigator.share) {
-      navigator.share({
-        title: `${post.author}님의 ${post.petName || '반려동물'} 사진`,
-        text: post.description || '귀여운 반려동물 사진을 확인해보세요!',
-        url: window.location.href,
-      }).catch(() => {
-        // 공유 취소 시 무시
-      });
-    } else {
-      // 웹 공유 API 미지원 시 클립보드 복사
-      navigator.clipboard.writeText(window.location.href);
-      Alert.alert('링크 복사', '링크가 클립보드에 복사되었습니다!');
+  const handleShare = async (post) => {
+    try {
+      const shareUrl = window.location.href;
+      const shareTitle = `${post.author}님의 ${post.petName || '반려동물'} 사진`;
+      const shareText = post.description || '귀여운 반려동물 사진을 확인해보세요!';
+
+      if (Platform.OS === 'web') {
+        // 웹 환경에서는 클립보드 복사를 우선으로
+        try {
+          // 클립보드 API 사용
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareUrl);
+            alert('✅ 링크가 클립보드에 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
+          } else {
+            // 클립보드 API 미지원 시 텍스트 선택 방식
+            const textArea = document.createElement('textarea');
+            textArea.value = shareUrl;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+              document.execCommand('copy');
+              alert('✅ 링크가 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
+            } catch (err) {
+              // 마지막 폴백: prompt로 링크 표시
+              prompt('아래 링크를 복사하세요:', shareUrl);
+            }
+
+            document.body.removeChild(textArea);
+          }
+        } catch (error) {
+          console.error('Clipboard error:', error);
+          // 에러 발생 시 prompt로 폴백
+          prompt('아래 링크를 복사하세요:', shareUrl);
+        }
+      } else {
+        // 모바일 환경
+        const Share = require('react-native').Share;
+        await Share.share({
+          title: shareTitle,
+          message: `${shareText}\n\n${shareUrl}`,
+        });
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      if (Platform.OS === 'web') {
+        alert('공유에 실패했습니다. 다시 시도해주세요.');
+      } else {
+        Alert.alert('오류', '공유에 실패했습니다. 다시 시도해주세요.');
+      }
     }
   };
 
   const handleNotifications = () => {
-    Alert.alert(
-      '알림',
-      '아직 새로운 알림이 없습니다.',
-      [{ text: '확인' }]
-    );
+    setShowNotifications(true);
+  };
+
+  const handleReportPost = (post) => {
+    setMenuPost(null);
+    setReportType('post');
+    setReportTarget(post);
+    setReportReason('');
+    setReportDetail('');
+    setShowReportModal(true);
+  };
+
+  const handleReportComment = (comment) => {
+    setMenuComment(null);
+    setReportType('comment');
+    setReportTarget(comment);
+    setReportReason('');
+    setReportDetail('');
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!reportReason) {
+      if (Platform.OS === 'web') {
+        alert('신고 사유를 선택해주세요.');
+      } else {
+        Alert.alert('알림', '신고 사유를 선택해주세요.');
+      }
+      return;
+    }
+
+    try {
+      // Firebase가 있으면 Firebase에 저장, 없으면 localStorage에 저장
+      const reportData = {
+        type: reportType,
+        targetId: reportTarget.id,
+        targetContent: reportType === 'post' ? reportTarget.description : reportTarget.text,
+        reportedUserId: reportTarget.authorId,
+        reportedUserName: reportTarget.author,
+        reporterId: currentUser.id,
+        reporterName: currentUser.nickname,
+        reason: reportReason,
+        detail: reportDetail,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      };
+
+      // Firebase 사용 시
+      const firebaseConfig = require('../config/firebase.config');
+      if (firebaseConfig.db) {
+        const firestoreService = require('../services/firestore.service');
+        await firestoreService.createReport(reportData);
+      } else {
+        // localStorage 사용 시
+        const reports = JSON.parse(localStorage.getItem('petPhotos_reports') || '[]');
+        reports.push({ ...reportData, id: Date.now().toString() });
+        localStorage.setItem('petPhotos_reports', JSON.stringify(reports));
+      }
+
+      setShowReportModal(false);
+      if (Platform.OS === 'web') {
+        alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+      } else {
+        Alert.alert('신고 완료', '신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+      }
+    } catch (error) {
+      console.error('Report submission error:', error);
+      if (Platform.OS === 'web') {
+        alert('신고 접수 중 오류가 발생했습니다.');
+      } else {
+        Alert.alert('오류', '신고 접수 중 오류가 발생했습니다.');
+      }
+    }
   };
 
   const handlePostMenu = (post) => {
@@ -171,6 +288,21 @@ export default function FeedScreen() {
     setCommentText('');
   };
 
+  // 사용자 프로필 이미지 가져오기
+  const getUserProfileImage = (nickname) => {
+    try {
+      const users = localStorage.getItem('petPhotos_users');
+      if (users) {
+        const userList = JSON.parse(users);
+        const user = userList.find(u => u.nickname === nickname);
+        return user?.profileImage || null;
+      }
+    } catch (error) {
+      console.error('Failed to get user profile image:', error);
+    }
+    return null;
+  };
+
   const renderPost = ({ item }) => {
     // 데이터 검증 - corrupted data 필터링
     if (!item || !item.id || !item.imageUrl || !item.author) {
@@ -179,6 +311,7 @@ export default function FeedScreen() {
     }
 
     const isLiked = item.likedBy?.includes(currentUser?.id);
+    const authorProfileImage = getUserProfileImage(item.author);
 
     return (
       <View style={styles.postContainer}>
@@ -186,7 +319,15 @@ export default function FeedScreen() {
         <View style={styles.postHeader}>
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
-              <Ionicons name="paw" size={20} color="#FF6B6B" />
+              {authorProfileImage ? (
+                <Image
+                  source={{ uri: authorProfileImage }}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="paw" size={20} color="#FF3366" />
+              )}
             </View>
             <View>
               <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>
@@ -224,7 +365,7 @@ export default function FeedScreen() {
               <Ionicons
                 name={isLiked ? "heart" : "heart-outline"}
                 size={28}
-                color={isLiked ? "#FF6B6B" : "#333"}
+                color={isLiked ? "#FF3366" : "#333"}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -244,13 +385,6 @@ export default function FeedScreen() {
               <Ionicons name="share-outline" size={26} color="#333" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={() => Alert.alert('북마크', '북마크 기능은 준비 중입니다!')}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="bookmark-outline" size={26} color="#333" />
-          </TouchableOpacity>
         </View>
 
         {/* 좋아요 수 */}
@@ -308,13 +442,21 @@ export default function FeedScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🐾 Pet Photos</Text>
+        <Text style={styles.headerTitle}>🐾 Peto</Text>
         <TouchableOpacity
           onPress={handleNotifications}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           activeOpacity={0.6}
+          style={styles.notificationButton}
         >
           <Ionicons name="notifications-outline" size={28} color="#333" />
+          {unreadCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
       <FlatList
@@ -428,7 +570,7 @@ export default function FeedScreen() {
                     <Ionicons
                       name={editingComment ? "checkmark" : "send"}
                       size={24}
-                      color={commentText.trim() ? "#FF6B6B" : "#ccc"}
+                      color={commentText.trim() ? "#FF3366" : "#ccc"}
                     />
                   </TouchableOpacity>
                 </View>
@@ -530,10 +672,7 @@ export default function FeedScreen() {
             ) : (
               <TouchableOpacity
                 style={styles.actionSheetButton}
-                onPress={() => {
-                  setMenuPost(null);
-                  Alert.alert('신고', '신고 기능은 준비 중입니다.');
-                }}
+                onPress={() => handleReportPost(menuPost)}
               >
                 <Ionicons name="flag-outline" size={24} color="#FF9500" />
                 <Text style={styles.actionSheetButtonText}>게시물 신고</Text>
@@ -666,6 +805,176 @@ export default function FeedScreen() {
         </View>
       </Modal>
 
+      {/* 알림 모달 */}
+      <Modal
+        visible={showNotifications}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowNotifications(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.overlayBackground}
+            activeOpacity={1}
+            onPress={() => setShowNotifications(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>알림</Text>
+              <View style={styles.notificationHeaderActions}>
+                {unreadCount > 0 && (
+                  <TouchableOpacity
+                    onPress={markAllAsRead}
+                    style={styles.markAllReadButton}
+                  >
+                    <Text style={styles.markAllReadText}>모두 읽음</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                  <Ionicons name="close" size={28} color="#333" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <FlatList
+              data={notifications}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.notificationItem,
+                    !item.read && styles.notificationItemUnread
+                  ]}
+                  onPress={() => {
+                    markAsRead(item.id);
+                    setShowNotifications(false);
+
+                    // 해당 게시물 찾아서 열기
+                    if (item.postId) {
+                      const post = posts.find(p => p.id === item.postId);
+                      if (post) {
+                        handleComment(post);
+                      }
+                    }
+                  }}
+                >
+                  <View style={styles.notificationContent}>
+                    {item.postImage && (
+                      <Image
+                        source={{ uri: item.postImage }}
+                        style={styles.notificationImage}
+                      />
+                    )}
+                    <View style={styles.notificationTextContainer}>
+                      <Text style={styles.notificationMessage}>{item.message}</Text>
+                      <Text style={styles.notificationTime}>
+                        {getTimeAgo(item.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyNotifications}>
+                  <Ionicons name="notifications-outline" size={64} color="#ccc" />
+                  <Text style={styles.emptyNotificationsText}>알림이 없습니다</Text>
+                </View>
+              }
+              style={styles.notificationsList}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* 신고 모달 */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowReportModal(false)}
+          />
+          <View style={styles.reportModal}>
+            <View style={styles.reportModalHeader}>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <Text style={styles.reportModalCancel}>취소</Text>
+              </TouchableOpacity>
+              <Text style={styles.reportModalTitle}>
+                {reportType === 'post' ? '게시물' : '댓글'} 신고
+              </Text>
+              <TouchableOpacity onPress={submitReport}>
+                <Text style={styles.reportModalSubmit}>제출</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.reportModalBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.reportLabel}>신고 사유 *</Text>
+              <View style={styles.reportReasons}>
+                {[
+                  { value: 'spam', label: '스팸 또는 광고' },
+                  { value: 'inappropriate', label: '부적절한 콘텐츠' },
+                  { value: 'harassment', label: '괴롭힘 또는 혐오 발언' },
+                  { value: 'violence', label: '폭력적인 콘텐츠' },
+                  { value: 'false_info', label: '허위 정보' },
+                  { value: 'other', label: '기타' },
+                ].map((reason) => (
+                  <TouchableOpacity
+                    key={reason.value}
+                    style={[
+                      styles.reasonOption,
+                      reportReason === reason.value && styles.reasonOptionSelected,
+                    ]}
+                    onPress={() => setReportReason(reason.value)}
+                  >
+                    <Ionicons
+                      name={reportReason === reason.value ? 'radio-button-on' : 'radio-button-off'}
+                      size={24}
+                      color={reportReason === reason.value ? '#FF3366' : '#AEAEB2'}
+                    />
+                    <Text
+                      style={[
+                        styles.reasonOptionText,
+                        reportReason === reason.value && styles.reasonOptionTextSelected,
+                      ]}
+                    >
+                      {reason.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.reportLabel}>상세 설명 (선택)</Text>
+              <TextInput
+                style={styles.reportDetailInput}
+                placeholder="신고 사유를 자세히 설명해주세요..."
+                value={reportDetail}
+                onChangeText={setReportDetail}
+                multiline
+                numberOfLines={4}
+                maxLength={500}
+              />
+              <Text style={styles.reportCharCount}>{reportDetail.length}/500</Text>
+
+              <View style={styles.reportNotice}>
+                <Ionicons name="information-circle-outline" size={20} color="#8E8E93" />
+                <Text style={styles.reportNoticeText}>
+                  신고 내용은 검토 후 적절한 조치가 취해집니다. 허위 신고는 제재 대상이 될 수 있습니다.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* 플로팅 액션 버튼 */}
       <FloatingActionButton />
     </View>
@@ -675,126 +984,167 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FAFBFC',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
   },
   postContainer: {
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    position: 'relative',
-    zIndex: 1,
+    marginBottom: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
   },
   postHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    zIndex: 2,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFE5E5',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFE8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FF3366',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
   authorName: {
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#1A1A1A',
+    marginBottom: 2,
   },
   petNameSmall: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 13,
+    color: '#8E8E93',
     marginTop: 2,
   },
   postMenuButton: {
-    padding: 8,
-    zIndex: 3,
-    position: 'relative',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#F8F9FA',
   },
   postImage: {
-    width: width,
-    height: width,
-    backgroundColor: '#f0f0f0',
+    width: '100%',
+    height: width - 32,
+    backgroundColor: '#F0F0F0',
   },
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
   },
   leftActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 20,
   },
   actionButton: {
-    marginRight: 16,
+    padding: 6,
   },
   likes: {
-    fontWeight: 'bold',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#1A1A1A',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   captionContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   caption: {
-    lineHeight: 18,
+    lineHeight: 20,
+    fontSize: 14,
+    color: '#2C2C2E',
   },
   viewComments: {
-    color: '#666',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    color: '#8E8E93',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    fontSize: 14,
+    fontWeight: '500',
   },
   timestamp: {
-    color: '#999',
+    color: '#C7C7CC',
     fontSize: 12,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 100,
+    paddingTop: 120,
+    paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#3A3A3C',
+    marginTop: 20,
+    textAlign: 'center',
   },
   emptySubText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: 15,
+    color: '#8E8E93',
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   modalContainer: {
     flex: 1,
@@ -820,103 +1170,118 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
     maxHeight: '80%',
-    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F0F0F0',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   commentsList: {
     maxHeight: 300,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   commentItem: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    borderBottomColor: '#F5F5F5',
   },
   commentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   commentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   commentAuthor: {
-    fontWeight: 'bold',
+    fontWeight: '700',
+    fontSize: 14,
+    color: '#1A1A1A',
   },
   editedLabel: {
     fontSize: 11,
-    color: '#999',
+    color: '#8E8E93',
     fontStyle: 'italic',
+    fontWeight: '500',
   },
   commentMenuButton: {
     padding: 8,
-    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
   },
   commentText: {
     fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
+    lineHeight: 21,
+    marginBottom: 6,
+    color: '#2C2C2E',
   },
   commentTime: {
     fontSize: 12,
-    color: '#999',
+    color: '#C7C7CC',
+    fontWeight: '500',
   },
   noComments: {
     textAlign: 'center',
-    color: '#999',
-    paddingVertical: 32,
+    color: '#8E8E93',
+    paddingVertical: 40,
+    fontSize: 15,
   },
   editingIndicator: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: '#FFF8E1',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#FFF9E6',
     borderTopWidth: 1,
-    borderTopColor: '#FFE082',
+    borderTopColor: '#FFE6A3',
   },
   editingText: {
-    fontSize: 13,
-    color: '#F57C00',
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
   },
   commentInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#F0F0F0',
     gap: 12,
+    backgroundColor: '#FFFFFF',
   },
   commentInput: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     maxHeight: 100,
+    fontSize: 15,
+    color: '#1A1A1A',
   },
   uploadModalOverlay: {
     flex: 1,
@@ -932,115 +1297,142 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   uploadModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     width: '90%',
-    maxHeight: '80%',
-    zIndex: 1,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    overflow: 'hidden',
   },
   uploadModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   previewImage: {
     width: '100%',
     height: 300,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#F5F5F7',
   },
   formContainer: {
-    padding: 20,
+    padding: 24,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    marginBottom: 16,
     fontSize: 16,
+    color: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
   },
   descriptionInput: {
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
   },
   uploadButton: {
-    backgroundColor: '#FF6B6B',
-    height: 56,
-    borderRadius: 28,
+    backgroundColor: '#FF3366',
+    height: 54,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    shadowColor: '#FF3366',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
   },
   uploadButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   actionSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 34,
-    paddingTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
     width: '100%',
     maxWidth: 500,
     alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
   },
   actionSheetButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F0F0F0',
   },
   actionSheetButtonDanger: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   actionSheetButtonCancel: {
     borderBottomWidth: 0,
-    marginTop: 8,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    marginHorizontal: 12,
+    marginTop: 12,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 16,
+    marginHorizontal: 16,
   },
   actionSheetButtonText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 12,
-    fontWeight: '500',
+    fontSize: 17,
+    color: '#1A1A1A',
+    marginLeft: 14,
+    fontWeight: '600',
   },
   actionSheetButtonTextDanger: {
     color: '#FF3B30',
+    fontWeight: '600',
   },
   confirmModalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 20,
   },
   confirmDialog: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
   },
   confirmTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 14,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   confirmMessage: {
     fontSize: 15,
-    color: '#666',
-    lineHeight: 22,
+    color: '#8E8E93',
+    lineHeight: 23,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   confirmButtons: {
     flexDirection: 'row',
@@ -1048,24 +1440,219 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: 'center',
   },
   confirmButtonCancel: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#F5F5F7',
   },
   confirmButtonDanger: {
     backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   confirmButtonTextCancel: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#333',
+    color: '#1A1A1A',
   },
   confirmButtonTextDanger: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  notificationButton: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3366',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  notificationHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  markAllReadButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 8,
+  },
+  markAllReadText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  notificationsList: {
+    maxHeight: 500,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
+  },
+  notificationItemUnread: {
+    backgroundColor: '#FFF5F7',
+  },
+  notificationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  notificationImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+  },
+  notificationTextContainer: {
+    flex: 1,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3366',
+    marginLeft: 12,
+  },
+  emptyNotifications: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyNotificationsText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  reportModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  reportModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  reportModalCancel: {
+    fontSize: 16,
+    color: '#8E8E93',
+  },
+  reportModalSubmit: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FF3366',
+  },
+  reportModalBody: {
+    padding: 20,
+  },
+  reportLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  reportReasons: {
+    marginBottom: 24,
+  },
+  reasonOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  reasonOptionSelected: {
+    backgroundColor: '#FFE8F0',
+  },
+  reasonOptionText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    marginLeft: 12,
+  },
+  reasonOptionTextSelected: {
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  reportDetailInput: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#1A1A1A',
+    backgroundColor: '#F5F5F7',
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  reportCharCount: {
+    fontSize: 13,
+    color: '#8E8E93',
+    textAlign: 'right',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  reportNotice: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F5F7',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  reportNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#8E8E93',
   },
 });

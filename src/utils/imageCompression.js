@@ -1,21 +1,21 @@
 /**
  * 이미지 압축 및 리사이징 유틸리티
- * Firestore Base64 저장을 위해 이미지를 800KB 이하로 압축
+ * 고해상도 유지를 위해 2MB 이하로 압축 (품질 우선)
  */
 
 /**
  * Base64 이미지를 압축
  * @param {string} base64Image - Base64 이미지 문자열
- * @param {number} maxWidth - 최대 너비 (기본: 1200px)
- * @param {number} maxHeight - 최대 높이 (기본: 1200px)
- * @param {number} quality - JPEG 품질 (0.0-1.0, 기본: 0.8)
+ * @param {number} maxWidth - 최대 너비 (기본: 2400px)
+ * @param {number} maxHeight - 최대 높이 (기본: 2400px)
+ * @param {number} quality - JPEG 품질 (0.0-1.0, 기본: 0.92)
  * @returns {Promise<string>} - 압축된 Base64 이미지
  */
 export const compressImage = async (
   base64Image,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.8
+  maxWidth = 2400,
+  maxHeight = 2400,
+  quality = 0.92
 ) => {
   return new Promise((resolve, reject) => {
     try {
@@ -57,12 +57,12 @@ export const compressImage = async (
           // Base64로 변환 (JPEG, 품질 조절)
           let compressedBase64 = canvas.toDataURL('image/jpeg', quality);
 
-          // 크기 확인 (800KB 제한)
-          const maxSize = 800 * 1024; // 800KB in bytes
+          // 크기 확인 (2000KB 제한으로 증가)
+          const maxSize = 2000 * 1024; // 2000KB (2MB) in bytes
           const base64Size = (compressedBase64.length * 3) / 4; // Base64 실제 크기 계산
 
-          // 800KB 초과 시 품질 낮춰서 재압축
-          if (base64Size > maxSize && quality > 0.3) {
+          // 2000KB 초과 시 품질 낮춰서 재압축
+          if (base64Size > maxSize && quality > 0.5) {
             console.log(`Image too large (${(base64Size / 1024).toFixed(0)}KB), re-compressing...`);
             return compressImage(base64Image, maxWidth, maxHeight, quality - 0.1)
               .then(resolve)

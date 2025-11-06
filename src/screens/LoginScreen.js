@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -18,52 +17,57 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [autoLogin, setAutoLogin] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const { signup, login, isNicknameAvailable } = useAuth();
 
   const handleSubmit = () => {
+    // 에러 메시지 초기화
+    setErrorMessage('');
+
     // 유효성 검사
     if (!nickname.trim()) {
-      Alert.alert('알림', '닉네임을 입력해주세요.');
+      setErrorMessage('닉네임을 입력해주세요.');
       return;
     }
 
     if (nickname.trim().length < 2) {
-      Alert.alert('알림', '닉네임은 최소 2자 이상이어야 합니다.');
+      setErrorMessage('닉네임은 최소 2자 이상이어야 합니다.');
       return;
     }
 
     if (!password) {
-      Alert.alert('알림', '비밀번호를 입력해주세요.');
+      setErrorMessage('비밀번호를 입력해주세요.');
       return;
     }
 
     if (password.length < 4) {
-      Alert.alert('알림', '비밀번호는 최소 4자 이상이어야 합니다.');
+      setErrorMessage('비밀번호는 최소 4자 이상이어야 합니다.');
       return;
     }
 
     if (isSignup) {
       // 회원가입
       if (password !== confirmPassword) {
-        Alert.alert('알림', '비밀번호가 일치하지 않습니다.');
+        setErrorMessage('비밀번호가 일치하지 않습니다.');
         return;
       }
 
       // 닉네임 중복 체크
       if (!isNicknameAvailable(nickname.trim())) {
-        Alert.alert('알림', '이미 사용 중인 닉네임입니다.\n다른 닉네임을 선택해주세요.');
+        setErrorMessage('이미 사용 중인 닉네임입니다.\n다른 닉네임을 선택해주세요.');
         return;
       }
 
-      const result = signup(nickname.trim(), password);
+      const result = signup(nickname.trim(), password, autoLogin);
       if (!result.success) {
-        Alert.alert('회원가입 실패', result.error);
+        setErrorMessage(result.error);
       }
     } else {
       // 로그인
-      const result = login(nickname.trim(), password);
+      const result = login(nickname.trim(), password, autoLogin);
       if (!result.success) {
-        Alert.alert('로그인 실패', result.error);
+        setErrorMessage(result.error);
       }
     }
   };
@@ -73,6 +77,7 @@ export default function LoginScreen() {
     setNickname('');
     setPassword('');
     setConfirmPassword('');
+    setErrorMessage('');
   };
 
   return (
@@ -83,8 +88,8 @@ export default function LoginScreen() {
       <View style={styles.content}>
         {/* 로고 */}
         <View style={styles.logoContainer}>
-          <Ionicons name="paw" size={64} color="#FF6B6B" />
-          <Text style={styles.title}>Pet Photos</Text>
+          <Ionicons name="paw" size={72} color="#FF3366" />
+          <Text style={styles.title}>Peto</Text>
           <Text style={styles.subtitle}>
             {isSignup ? '계정 만들기' : '어서오세요!'}
           </Text>
@@ -140,12 +145,31 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={18} color="#FF3366" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           {isSignup && (
             <Text style={styles.helperText}>
               * 닉네임과 비밀번호만으로 시작할 수 있어요!{'\n'}
               * 개인정보는 수집하지 않습니다.
             </Text>
           )}
+
+          {/* 자동 로그인 체크박스 */}
+          <TouchableOpacity
+            style={styles.autoLoginContainer}
+            onPress={() => setAutoLogin(!autoLogin)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, autoLogin && styles.checkboxChecked]}>
+              {autoLogin && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+            </View>
+            <Text style={styles.autoLoginText}>자동 로그인</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>
@@ -167,7 +191,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FAFBFC',
   },
   content: {
     flex: 1,
@@ -176,18 +200,20 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 60,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginTop: 20,
+    letterSpacing: -1,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
+    fontSize: 17,
+    color: '#8E8E93',
+    marginTop: 10,
+    fontWeight: '500',
   },
   form: {
     width: '100%',
@@ -195,49 +221,107 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 16,
     marginBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8f8f8',
+    paddingHorizontal: 18,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 14,
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 18,
     fontSize: 16,
-    color: '#333',
+    color: '#1A1A1A',
   },
   eyeIcon: {
     padding: 8,
   },
   helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 24,
-    lineHeight: 18,
+    fontSize: 13,
+    color: '#8E8E93',
+    marginBottom: 28,
+    lineHeight: 20,
+    paddingHorizontal: 4,
   },
   submitButton: {
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#FF3366',
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: '#FF3366',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   switchButton: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   switchButtonText: {
-    color: '#FF6B6B',
+    color: '#FF3366',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE0E7',
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#FF3366',
     fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  autoLoginContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  autoLoginText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
   },
 });

@@ -206,3 +206,212 @@ export const getUser = async (userId) => {
     throw error;
   }
 };
+
+// ====== 신고 관련 ======
+
+/**
+ * 신고 추가
+ */
+export const createReport = async (reportData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'reports'), {
+      ...reportData,
+      status: 'pending', // pending, reviewed, resolved
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Create report error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 모든 신고 가져오기 (관리자용)
+ */
+export const subscribeToReports = (callback, limitCount = 100) => {
+  const q = query(
+    collection(db, 'reports'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const reports = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    }));
+    callback(reports);
+  }, (error) => {
+    console.error('Reports subscription error:', error);
+    callback([]);
+  });
+};
+
+/**
+ * 신고 상태 업데이트
+ */
+export const updateReportStatus = async (reportId, status, adminNote) => {
+  try {
+    const reportRef = doc(db, 'reports', reportId);
+    await updateDoc(reportRef, {
+      status,
+      adminNote: adminNote || '',
+      resolvedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Update report status error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 신고 삭제
+ */
+export const deleteReport = async (reportId) => {
+  try {
+    await deleteDoc(doc(db, 'reports', reportId));
+  } catch (error) {
+    console.error('Delete report error:', error);
+    throw error;
+  }
+};
+
+// ====== 문의 관련 ======
+
+/**
+ * 문의 추가
+ */
+export const createInquiry = async (inquiryData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'inquiries'), {
+      ...inquiryData,
+      status: 'pending', // pending, answered
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Create inquiry error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 사용자의 문의 목록 가져오기
+ */
+export const subscribeToUserInquiries = (userId, callback) => {
+  const q = query(
+    collection(db, 'inquiries'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const inquiries = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      }))
+      .filter(inquiry => inquiry.userId === userId);
+    callback(inquiries);
+  }, (error) => {
+    console.error('User inquiries subscription error:', error);
+    callback([]);
+  });
+};
+
+/**
+ * 모든 문의 가져오기 (관리자용)
+ */
+export const subscribeToAllInquiries = (callback, limitCount = 100) => {
+  const q = query(
+    collection(db, 'inquiries'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const inquiries = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    }));
+    callback(inquiries);
+  }, (error) => {
+    console.error('All inquiries subscription error:', error);
+    callback([]);
+  });
+};
+
+/**
+ * 문의에 답변 추가
+ */
+export const answerInquiry = async (inquiryId, answer, adminId) => {
+  try {
+    const inquiryRef = doc(db, 'inquiries', inquiryId);
+    await updateDoc(inquiryRef, {
+      status: 'answered',
+      answer,
+      adminId,
+      answeredAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Answer inquiry error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 문의 삭제
+ */
+export const deleteInquiry = async (inquiryId) => {
+  try {
+    await deleteDoc(doc(db, 'inquiries', inquiryId));
+  } catch (error) {
+    console.error('Delete inquiry error:', error);
+    throw error;
+  }
+};
+
+// ====== 사용자 제재 관련 ======
+
+/**
+ * 사용자 제재
+ */
+export const banUser = async (userId, reason, duration) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const banUntil = duration === 'permanent'
+      ? null
+      : new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString();
+
+    await updateDoc(userRef, {
+      isBanned: true,
+      banReason: reason,
+      banUntil: banUntil,
+      bannedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Ban user error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 사용자 제재 해제
+ */
+export const unbanUser = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      isBanned: false,
+      banReason: null,
+      banUntil: null,
+      unbannedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Unban user error:', error);
+    throw error;
+  }
+};

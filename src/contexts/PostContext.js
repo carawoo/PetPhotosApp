@@ -2,6 +2,15 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { compressImage, formatBase64Size } from '../utils/imageCompression';
 
+// NotificationContext는 동적으로 import
+let useNotificationHook = null;
+try {
+  const NotificationModule = require('./NotificationContext');
+  useNotificationHook = NotificationModule.useNotification;
+} catch (error) {
+  // NotificationContext가 없으면 무시
+}
+
 // Firebase 서비스 (optional)
 let firestoreService = null;
 let storageService = null;
@@ -34,6 +43,17 @@ export const PostProvider = ({ children }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const { currentUser } = useAuth();
   const useFirebase = firestoreService !== null;
+
+  // 알림 기능 (선택적)
+  let addNotification = null;
+  if (useNotificationHook) {
+    try {
+      const notificationContext = useNotificationHook();
+      addNotification = notificationContext.addNotification;
+    } catch (error) {
+      // 알림 기능 사용 불가
+    }
+  }
 
   // 데이터 로드
   useEffect(() => {
@@ -282,20 +302,53 @@ export const PostProvider = ({ children }) => {
     }
   };
 
+  // 다른 사용자에게 알림 보내기 (localStorage에 직접 저장)
+  const sendNotificationToUser = (targetUserId, notification) => {
+    try {
+      const notificationsKey = `notifications_${targetUserId}`;
+      const savedNotifications = localStorage.getItem(notificationsKey);
+      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+
+      const newNotification = {
+        id: Date.now().toString(),
+        ...notification,
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updated = [newNotification, ...notifications];
+      localStorage.setItem(notificationsKey, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+    }
+  };
+
   // ====== 좋아요 토글 ======
 
   const toggleLike = async (postId) => {
     try {
       const userId = currentUser?.id || 'anonymous';
+      const post = posts.find(p => p.id === postId);
+      const isLiked = post?.likedBy?.includes(userId);
+
+      // 좋아요 추가 시 게시물 작성자에게 알림 (본인 게시물 제외)
+      if (!isLiked && post && post.authorId !== userId) {
+        sendNotificationToUser(post.authorId, {
+          type: 'like',
+          postId: postId,
+          postImage: post.imageUrl,
+          fromUser: currentUser?.nickname || 'Someone',
+          fromUserId: userId,
+          message: `${currentUser?.nickname || 'Someone'}님이 회원님의 게시물을 좋아합니다`,
+          targetUserId: post.authorId,
+        });
+      }
 
       if (useFirebase) {
-        const post = posts.find(p => p.id === postId);
-        const isLiked = post?.likedBy?.includes(userId);
         await firestoreService.toggleLike(postId, userId, isLiked);
       } else {
         const updatedPosts = posts.map(post => {
           if (post.id === postId) {
-            const isLiked = post.likedBy?.includes(userId);
             return {
               ...post,
               likes: isLiked ? (post.likes || 1) - 1 : (post.likes || 0) + 1,
@@ -318,13 +371,29 @@ export const PostProvider = ({ children }) => {
 
   const addComment = async (postId, comment) => {
     try {
+      const userId = currentUser?.id || 'anonymous';
+      const post = posts.find(p => p.id === postId);
+
       const newComment = {
         id: Date.now().toString(),
         text: comment,
         author: currentUser?.nickname || 'Anonymous',
-        authorId: currentUser?.id || 'anonymous',
+        authorId: userId,
         createdAt: new Date().toISOString(),
       };
+
+      // 댓글 추가 시 게시물 작성자에게 알림 (본인 게시물 제외)
+      if (post && post.authorId !== userId) {
+        sendNotificationToUser(post.authorId, {
+          type: 'comment',
+          postId: postId,
+          postImage: post.imageUrl,
+          fromUser: currentUser?.nickname || 'Someone',
+          fromUserId: userId,
+          message: `${currentUser?.nickname || 'Someone'}님이 댓글을 남겼습니다: "${comment.length > 30 ? comment.substring(0, 30) + '...' : comment}"`,
+          targetUserId: post.authorId,
+        });
+      }
 
       if (useFirebase) {
         await firestoreService.addComment(postId, newComment);

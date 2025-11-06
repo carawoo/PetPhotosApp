@@ -73,7 +73,7 @@ export default function ShortsScreen() {
           <Ionicons
             name={likedPosts[item.id] ? 'heart' : 'heart-outline'}
             size={36}
-            color={likedPosts[item.id] ? '#FF6B6B' : '#fff'}
+            color={likedPosts[item.id] ? '#FF3366' : '#fff'}
           />
           <Text style={styles.actionText}>
             {item.likes + (likedPosts[item.id] ? 1 : 0)}
@@ -89,10 +89,6 @@ export default function ShortsScreen() {
           <Ionicons name="share-outline" size={32} color="#fff" />
           <Text style={styles.actionText}>공유</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionIconContainer}>
-          <Ionicons name="bookmark-outline" size={32} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       {/* 하단 정보 */}
@@ -100,7 +96,7 @@ export default function ShortsScreen() {
         <View style={styles.userInfoContainer}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Ionicons name="paw" size={24} color="#FF6B6B" />
+              <Ionicons name="paw" size={24} color="#FF3366" />
             </View>
           </View>
           <Text style={styles.username}>{item.petName}</Text>
@@ -224,7 +220,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: '#FF3366',
   },
   username: {
     color: '#fff',
