@@ -40,24 +40,45 @@ export default function ProfileScreen({ route, navigation }) {
 
   // URL에서 받은 userId 또는 현재 로그인 사용자
   const profileUserId = route?.params?.userId || currentUser?.id;
-  const isOwnProfile = profileUserId === currentUser?.id;
+  const isOwnProfile = currentUser && profileUserId === currentUser?.id;
+
+  // 비회원이 프로필 탭을 직접 클릭한 경우 (URL에 userId 없음)
+  React.useEffect(() => {
+    if (!currentUser && !route?.params?.userId) {
+      // 프로필 탭 직접 클릭 -> 로그인 필요
+      if (Platform.OS === 'web') {
+        window.location.href = '/';
+      }
+    }
+  }, [currentUser, route?.params?.userId]);
 
   // 프로필 사용자 찾기
   const [profileUser, setProfileUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   React.useEffect(() => {
-    if (isOwnProfile) {
-      setProfileUser(currentUser);
-    } else {
-      // localStorage에서 사용자 정보 가져오기
+    const loadUser = async () => {
+      setLoading(true);
       try {
-        const users = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
-        const user = users.find(u => u.id === profileUserId);
-        setProfileUser(user || null);
+        if (currentUser && isOwnProfile) {
+          // 본인 프로필
+          setProfileUser(currentUser);
+        } else if (profileUserId) {
+          // 다른 사용자 프로필 (비회원 포함)
+          const users = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
+          const user = users.find(u => u.id === profileUserId);
+          console.log('🔍 Looking for user:', profileUserId, 'Found:', user);
+          setProfileUser(user || null);
+        }
       } catch (error) {
         console.error('Failed to load user:', error);
         setProfileUser(null);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    loadUser();
   }, [profileUserId, currentUser, isOwnProfile]);
 
   // 프로필 사용자의 게시물만 필터링
@@ -323,6 +344,38 @@ export default function ProfileScreen({ route, navigation }) {
       </View>
     </TouchableOpacity>
   );
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF3366" />
+      </View>
+    );
+  }
+
+  // 사용자를 찾을 수 없음
+  if (!profileUser) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="person-outline" size={80} color="#AEAEB2" />
+        <Text style={styles.errorTitle}>사용자를 찾을 수 없습니다</Text>
+        <Text style={styles.errorText}>
+          존재하지 않는 프로필입니다.
+        </Text>
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.location.href = '/';
+            }
+          }}
+        >
+          <Text style={styles.errorButtonText}>홈으로 이동</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -693,6 +746,43 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFBFC',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFBFC',
+    paddingHorizontal: 40,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  errorButton: {
+    backgroundColor: '#FF3366',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 24,
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
   profileSection: {
