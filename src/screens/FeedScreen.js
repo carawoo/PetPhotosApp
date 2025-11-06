@@ -29,6 +29,20 @@ export default function FeedScreen() {
   const [editingPost, setEditingPost] = useState(null);
   const [editPetName, setEditPetName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [menuPost, setMenuPost] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [menuComment, setMenuComment] = useState(null);
+  const [showDeleteCommentConfirm, setShowDeleteCommentConfirm] = useState(false);
+
+  // selectedPost를 posts와 동기화
+  React.useEffect(() => {
+    if (selectedPost) {
+      const updatedPost = posts.find(p => p.id === selectedPost.id);
+      if (updatedPost) {
+        setSelectedPost(updatedPost);
+      }
+    }
+  }, [posts]);
 
   const handleLike = (postId) => {
     toggleLike(postId);
@@ -65,25 +79,11 @@ export default function FeedScreen() {
   };
 
   const handlePostMenu = (post) => {
-    const isMyPost = post.authorId === currentUser?.id;
-
-    Alert.alert(
-      '게시물 옵션',
-      '',
-      isMyPost
-        ? [
-            { text: '수정', onPress: () => handleEditPost(post) },
-            { text: '삭제', onPress: () => handleDeletePost(post.id), style: 'destructive' },
-            { text: '취소', style: 'cancel' },
-          ]
-        : [
-            { text: '신고', onPress: () => Alert.alert('신고', '신고 기능은 준비 중입니다.') },
-            { text: '취소', style: 'cancel' },
-          ]
-    );
+    setMenuPost(post);
   };
 
   const handleEditPost = (post) => {
+    setMenuPost(null);
     setEditingPost(post);
     setEditPetName(post.petName || '');
     setEditDescription(post.description || '');
@@ -112,22 +112,16 @@ export default function FeedScreen() {
     setEditDescription('');
   };
 
-  const handleDeletePost = (postId) => {
-    Alert.alert(
-      '게시물 삭제',
-      '정말 이 게시물을 삭제하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => {
-            deletePost(postId);
-            Alert.alert('삭제 완료', '게시물이 삭제되었습니다.');
-          },
-        },
-      ]
-    );
+  const handleDeletePost = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePost = () => {
+    if (menuPost) {
+      deletePost(menuPost.id);
+      setShowDeleteConfirm(false);
+      setMenuPost(null);
+    }
   };
 
   const submitComment = () => {
@@ -145,50 +139,25 @@ export default function FeedScreen() {
   };
 
   const handleCommentMenu = (comment) => {
-    const isMyComment = comment.authorId === currentUser?.id;
-
-    if (!isMyComment) {
-      Alert.alert('댓글 신고', '신고 기능은 준비 중입니다.');
-      return;
-    }
-
-    Alert.alert(
-      '댓글 옵션',
-      '',
-      [
-        {
-          text: '수정',
-          onPress: () => {
-            setEditingComment(comment);
-            setCommentText(comment.text);
-          },
-        },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => handleDeleteComment(comment),
-        },
-        { text: '취소', style: 'cancel' },
-      ]
-    );
+    setMenuComment(comment);
   };
 
-  const handleDeleteComment = (comment) => {
-    Alert.alert(
-      '댓글 삭제',
-      '정말 이 댓글을 삭제하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => {
-            deleteComment(selectedPost.id, comment.id);
-            Alert.alert('삭제 완료', '댓글이 삭제되었습니다.');
-          },
-        },
-      ]
-    );
+  const handleEditComment = (comment) => {
+    setMenuComment(null);
+    setEditingComment(comment);
+    setCommentText(comment.text);
+  };
+
+  const handleDeleteComment = () => {
+    setShowDeleteCommentConfirm(true);
+  };
+
+  const confirmDeleteComment = () => {
+    if (menuComment && selectedPost) {
+      deleteComment(selectedPost.id, menuComment.id);
+      setShowDeleteCommentConfirm(false);
+      setMenuComment(null);
+    }
   };
 
   const cancelEdit = () => {
@@ -525,6 +494,178 @@ export default function FeedScreen() {
         </View>
       </Modal>
 
+      {/* 게시물 메뉴 모달 */}
+      <Modal
+        visible={menuPost !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setMenuPost(null)}
+          />
+          <View style={styles.actionSheet}>
+            {menuPost?.authorId === currentUser?.id ? (
+              <>
+                <TouchableOpacity
+                  style={styles.actionSheetButton}
+                  onPress={() => handleEditPost(menuPost)}
+                >
+                  <Ionicons name="create-outline" size={24} color="#333" />
+                  <Text style={styles.actionSheetButtonText}>게시물 수정</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionSheetButton, styles.actionSheetButtonDanger]}
+                  onPress={handleDeletePost}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                  <Text style={[styles.actionSheetButtonText, styles.actionSheetButtonTextDanger]}>
+                    게시물 삭제
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionSheetButton}
+                onPress={() => {
+                  setMenuPost(null);
+                  Alert.alert('신고', '신고 기능은 준비 중입니다.');
+                }}
+              >
+                <Ionicons name="flag-outline" size={24} color="#FF9500" />
+                <Text style={styles.actionSheetButtonText}>게시물 신고</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.actionSheetButton, styles.actionSheetButtonCancel]}
+              onPress={() => setMenuPost(null)}
+            >
+              <Text style={styles.actionSheetButtonText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 삭제 확인 모달 */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmDialog}>
+            <Text style={styles.confirmTitle}>게시물 삭제</Text>
+            <Text style={styles.confirmMessage}>
+              정말 이 게시물을 삭제하시겠습니까?{'\n'}삭제된 게시물은 복구할 수 없습니다.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonCancel]}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={styles.confirmButtonTextCancel}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonDanger]}
+                onPress={confirmDeletePost}
+              >
+                <Text style={styles.confirmButtonTextDanger}>삭제</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 댓글 메뉴 모달 */}
+      <Modal
+        visible={menuComment !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuComment(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setMenuComment(null)}
+          />
+          <View style={styles.actionSheet}>
+            {menuComment?.authorId === currentUser?.id ? (
+              <>
+                <TouchableOpacity
+                  style={styles.actionSheetButton}
+                  onPress={() => handleEditComment(menuComment)}
+                >
+                  <Ionicons name="create-outline" size={24} color="#333" />
+                  <Text style={styles.actionSheetButtonText}>댓글 수정</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionSheetButton, styles.actionSheetButtonDanger]}
+                  onPress={handleDeleteComment}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                  <Text style={[styles.actionSheetButtonText, styles.actionSheetButtonTextDanger]}>
+                    댓글 삭제
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionSheetButton}
+                onPress={() => {
+                  setMenuComment(null);
+                  Alert.alert('신고', '신고 기능은 준비 중입니다.');
+                }}
+              >
+                <Ionicons name="flag-outline" size={24} color="#FF9500" />
+                <Text style={styles.actionSheetButtonText}>댓글 신고</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.actionSheetButton, styles.actionSheetButtonCancel]}
+              onPress={() => setMenuComment(null)}
+            >
+              <Text style={styles.actionSheetButtonText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 댓글 삭제 확인 모달 */}
+      <Modal
+        visible={showDeleteCommentConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteCommentConfirm(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmDialog}>
+            <Text style={styles.confirmTitle}>댓글 삭제</Text>
+            <Text style={styles.confirmMessage}>
+              정말 이 댓글을 삭제하시겠습니까?{'\n'}삭제된 댓글은 복구할 수 없습니다.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonCancel]}
+                onPress={() => setShowDeleteCommentConfirm(false)}
+              >
+                <Text style={styles.confirmButtonTextCancel}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonDanger]}
+                onPress={confirmDeleteComment}
+              >
+                <Text style={styles.confirmButtonTextDanger}>삭제</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* 플로팅 액션 버튼 */}
       <FloatingActionButton />
     </View>
@@ -661,6 +802,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   overlayBackground: {
     position: 'absolute',
@@ -828,5 +977,95 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  actionSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+    paddingTop: 8,
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
+  },
+  actionSheetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  actionSheetButtonDanger: {
+    backgroundColor: '#fff',
+  },
+  actionSheetButtonCancel: {
+    borderBottomWidth: 0,
+    marginTop: 8,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    marginHorizontal: 12,
+  },
+  actionSheetButtonText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  actionSheetButtonTextDanger: {
+    color: '#FF3B30',
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  confirmDialog: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonCancel: {
+    backgroundColor: '#f0f0f0',
+  },
+  confirmButtonDanger: {
+    backgroundColor: '#FF3B30',
+  },
+  confirmButtonTextCancel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  confirmButtonTextDanger: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
