@@ -1,5 +1,20 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
+// Firebase 서비스 (optional)
+let firestoreService = null;
+let useFirebase = false;
+
+try {
+  const firebaseConfig = require('../config/firebase.config');
+  if (firebaseConfig.db) {
+    firestoreService = require('../services/firestore.service');
+    useFirebase = true;
+    console.log('✅ Firebase enabled for Auth');
+  }
+} catch (error) {
+  console.log('📦 Using localStorage mode for Auth');
+}
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -61,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 회원가입
-  const signup = (nickname, password, autoLogin = true) => {
+  const signup = async (nickname, password, autoLogin = true) => {
     try {
       // 닉네임 중복 체크
       if (!isNicknameAvailable(nickname)) {
@@ -78,6 +93,20 @@ export const AuthProvider = ({ children }) => {
 
       users.push(newUser);
       saveUsers(users);
+
+      // Firestore에도 저장 (비밀번호 제외)
+      if (useFirebase && firestoreService) {
+        try {
+          const userDataForFirestore = {
+            nickname: newUser.nickname,
+            createdAt: newUser.createdAt,
+          };
+          await firestoreService.createUser(newUser.id, userDataForFirestore);
+          console.log('✅ User synced to Firestore');
+        } catch (error) {
+          console.warn('⚠️ Firestore user sync failed, continuing with localStorage:', error.message);
+        }
+      }
 
       // 자동 로그인
       const userWithoutPassword = { ...newUser };
@@ -125,7 +154,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 프로필 이미지 업데이트
-  const updateProfileImage = (imageUrl) => {
+  const updateProfileImage = async (imageUrl) => {
     try {
       if (!currentUser) return { success: false, error: '로그인이 필요합니다.' };
 
@@ -144,6 +173,19 @@ export const AuthProvider = ({ children }) => {
       );
       saveUsers(updatedUsers);
 
+      // Firestore에도 업데이트
+      if (useFirebase && firestoreService) {
+        try {
+          const userRef = firestoreService.db ? require('firebase/firestore').doc(firestoreService.db, 'users', currentUser.id) : null;
+          if (userRef) {
+            await require('firebase/firestore').updateDoc(userRef, { profileImage: imageUrl });
+            console.log('✅ Profile image synced to Firestore');
+          }
+        } catch (error) {
+          console.warn('⚠️ Firestore profile image sync failed:', error.message);
+        }
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Failed to update profile image:', error);
@@ -152,7 +194,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 프로필 소개글 업데이트
-  const updateProfileBio = (bio) => {
+  const updateProfileBio = async (bio) => {
     try {
       if (!currentUser) return { success: false, error: '로그인이 필요합니다.' };
 
@@ -171,10 +213,85 @@ export const AuthProvider = ({ children }) => {
       );
       saveUsers(updatedUsers);
 
+      // Firestore에도 업데이트
+      if (useFirebase && firestoreService) {
+        try {
+          const { doc, updateDoc } = require('firebase/firestore');
+          const { db } = require('../config/firebase.config');
+          const userRef = doc(db, 'users', currentUser.id);
+          await updateDoc(userRef, { bio });
+          console.log('✅ Bio synced to Firestore');
+        } catch (error) {
+          console.warn('⚠️ Firestore bio sync failed:', error.message);
+        }
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Failed to update bio:', error);
       return { success: false, error: '프로필 소개글 업데이트 실패' };
+    }
+  };
+
+  // 기존 localStorage 사용자를 Firestore로 마이그레이션
+  const syncUsersToFirestore = async () => {
+    if (!useFirebase || !firestoreService) {
+      console.log('Firebase not enabled, skipping sync');
+      return { success: false, error: 'Firebase not enabled' };
+    }
+
+    try {
+      const users = getAllUsers();
+      let synced = 0;
+      let failed = 0;
+
+      for (const user of users) {
+        try {
+          const userDataForFirestore = {
+            nickname: user.nickname,
+            createdAt: user.createdAt,
+            profileImage: user.profileImage || null,
+            bio: user.bio || null,
+          };
+          await firestoreService.createUser(user.id, userDataForFirestore);
+          synced++;
+          console.log(`✅ Synced user: ${user.nickname}`);
+        } catch (error) {
+          failed++;
+          console.warn(`⚠️ Failed to sync user ${user.nickname}:`, error.message);
+        }
+      }
+
+      console.log(`📊 Sync complete: ${synced} success, ${failed} failed`);
+      return { success: true, synced, failed };
+    } catch (error) {
+      console.error('Sync users to Firestore failed:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Firestore 연결 테스트
+  const testFirestoreConnection = async () => {
+    if (!useFirebase) {
+      return { success: false, mode: 'localStorage', message: 'Firebase not configured' };
+    }
+
+    try {
+      // 간단한 읽기 테스트
+      const { collection, getDocs, limit, query } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const testQuery = query(collection(db, 'users'), limit(1));
+      await getDocs(testQuery);
+
+      return { success: true, mode: 'firestore', message: '✅ Firestore connected successfully' };
+    } catch (error) {
+      return {
+        success: false,
+        mode: 'localStorage',
+        message: `⚠️ Firestore error: ${error.message}`,
+        error: error.code
+      };
     }
   };
 
@@ -189,6 +306,9 @@ export const AuthProvider = ({ children }) => {
         isNicknameAvailable,
         updateProfileImage,
         updateProfileBio,
+        syncUsersToFirestore,
+        testFirestoreConnection,
+        useFirebase,
       }}
     >
       {children}

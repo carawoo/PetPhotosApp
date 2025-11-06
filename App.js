@@ -44,7 +44,7 @@ if (typeof localStorage !== 'undefined') {
 }
 
 function AppContent() {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, useFirebase } = useAuth();
   const [isAdminRoute, setIsAdminRoute] = useState(false);
 
   useEffect(() => {
@@ -55,6 +55,9 @@ function AppContent() {
       console.log('🔍 Route check:', { pathname, isAdmin, Platform: Platform.OS });
       setIsAdminRoute(isAdmin);
     }
+
+    // Firestore 상태 로그
+    console.log('🔥 Firestore status:', useFirebase ? '✅ ENABLED' : '📦 localStorage only');
   }, []);
 
   console.log('🎯 AppContent render:', {

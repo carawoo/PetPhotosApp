@@ -207,6 +207,45 @@ export const getUser = async (userId) => {
   }
 };
 
+/**
+ * 모든 사용자 가져오기 (관리자용)
+ */
+export const subscribeToAllUsers = (callback, limitCount = 100) => {
+  const q = query(
+    collection(db, 'users'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const users = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    }));
+    callback(users);
+  }, (error) => {
+    console.error('Users subscription error:', error);
+    callback([]);
+  });
+};
+
+/**
+ * 사용자 정보 업데이트
+ */
+export const updateUser = async (userId, updates) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    throw error;
+  }
+};
+
 // ====== 신고 관련 ======
 
 /**
