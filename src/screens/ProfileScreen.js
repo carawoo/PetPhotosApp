@@ -134,10 +134,11 @@ export default function ProfileScreen() {
   const handleShareProfile = async () => {
     console.log('🔗 Share button clicked');
     try {
-      // 웹 URL 생성
-      const profileUrl = Platform.OS === 'web'
+      // 웹 URL 생성 - 사용자 프로필 페이지로 직접 연결
+      const baseUrl = Platform.OS === 'web'
         ? window.location.origin
         : 'https://peto.real-e.space';
+      const profileUrl = `${baseUrl}/profile/${currentUser?.id}`;
 
       const shareContent = {
         title: `${currentUser?.nickname}의 반려동물 사진첩`,
