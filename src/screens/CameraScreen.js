@@ -23,6 +23,7 @@ import { compressImage } from '../utils/imageCompression';
 
 export default function CameraScreen() {
   const [facing, setFacing] = useState('back');
+  const [webFacingMode, setWebFacingMode] = useState('environment'); // 'environment' = 후면, 'user' = 전면
   const [permission, requestPermission] = useCameraPermissions();
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
   const [capturedPhoto, setCapturedPhoto] = useState(null);
@@ -155,7 +156,7 @@ export default function CameraScreen() {
       // 고해상도 카메라 요청
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'environment', // 후면 카메라
+          facingMode: webFacingMode, // 'environment' 또는 'user'
           width: { ideal: 3840, max: 4096 },  // 4K 해상도
           height: { ideal: 2160, max: 2160 },
           aspectRatio: { ideal: 16/9 },
@@ -173,7 +174,7 @@ export default function CameraScreen() {
       // 고해상도 실패 시 기본 설정으로 재시도
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: { facingMode: webFacingMode },
           audio: false,
         });
         if (videoRef.current) {
@@ -252,12 +253,31 @@ export default function CameraScreen() {
     });
   };
 
+  // 웹 카메라 전면/후면 전환
+  const toggleWebCameraFacing = () => {
+    // 기존 스트림 정지
+    if (webStream) {
+      webStream.getTracks().forEach(track => track.stop());
+      setWebStream(null);
+      setWebCameraReady(false);
+    }
+
+    // facingMode 전환
+    const newFacingMode = webFacingMode === 'environment' ? 'user' : 'environment';
+    setWebFacingMode(newFacingMode);
+
+    // 새로운 카메라로 다시 시작
+    setTimeout(() => {
+      startWebCamera();
+    }, 100);
+  };
+
   // 네이티브 카메라로 직접 촬영
   const openNativeCamera = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // 후면 카메라 사용
+    input.capture = webFacingMode; // 'environment' 또는 'user'
 
     input.onchange = async (e) => {
       const file = e.target.files[0];
@@ -678,7 +698,12 @@ export default function CameraScreen() {
             </View>
           </TouchableOpacity>
 
-          <View style={{ width: 50 }} />
+          <TouchableOpacity
+            style={styles.webFlipButton}
+            onPress={toggleWebCameraFacing}
+          >
+            <Ionicons name="camera-reverse-outline" size={28} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         {/* 커스텀 필터 편집기 (애플 스타일) */}
@@ -913,6 +938,14 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  webFlipButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
