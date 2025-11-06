@@ -92,6 +92,83 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
+  const handleMigrateUsers = async () => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm('localStorage의 모든 사용자 데이터를 Firestore로 마이그레이션하시겠습니까?')) {
+        return;
+      }
+    } else {
+      Alert.alert(
+        '데이터 마이그레이션',
+        'localStorage의 모든 사용자 데이터를 Firestore로 마이그레이션하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '확인', onPress: () => executeMigration() },
+        ]
+      );
+      return;
+    }
+
+    await executeMigration();
+  };
+
+  const executeMigration = async () => {
+    try {
+      // Firebase 가져오기
+      const firebaseConfig = require('../config/firebase.config');
+      const { db } = firebaseConfig;
+      const { collection, doc, setDoc } = require('firebase/firestore');
+
+      // localStorage에서 사용자 가져오기
+      const devUsers = JSON.parse(localStorage.getItem('petPhotos_dev_users') || '[]');
+      const prodUsers = JSON.parse(localStorage.getItem('petPhotos_users') || '[]');
+      const allUsers = [...devUsers, ...prodUsers];
+
+      // 중복 제거
+      const uniqueUsers = Array.from(
+        new Map(allUsers.map(user => [user.id, user])).values()
+      );
+
+      console.log(`📦 ${uniqueUsers.length}명의 사용자를 마이그레이션합니다...`);
+
+      // Firestore로 업로드
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const user of uniqueUsers) {
+        try {
+          await setDoc(doc(db, 'users', String(user.id)), {
+            nickname: user.nickname,
+            createdAt: user.createdAt,
+            profileImage: user.profileImage || null,
+            bio: user.bio || null,
+          });
+          console.log(`✅ ${user.nickname} (${user.id})`);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ ${user.nickname} (${user.id})`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`\n🎉 마이그레이션 완료! 성공: ${successCount}, 실패: ${failCount}`);
+
+      if (Platform.OS === 'web') {
+        alert(`마이그레이션 완료!\n\n성공: ${successCount}명\n실패: ${failCount}명`);
+      } else {
+        Alert.alert('완료', `마이그레이션 완료!\n\n성공: ${successCount}명\n실패: ${failCount}명`);
+      }
+
+    } catch (error) {
+      console.error('❌ 마이그레이션 실패:', error);
+      if (Platform.OS === 'web') {
+        alert(`마이그레이션 실패: ${error.message}`);
+      } else {
+        Alert.alert('오류', `마이그레이션 실패: ${error.message}`);
+      }
+    }
+  };
+
   const getReportHistory = () => {
     try {
       const allReports = [];
@@ -192,6 +269,24 @@ export default function SettingsScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
           </TouchableOpacity>
         </View>
+
+        {/* 개발자 도구 (_carawoo만 표시) */}
+        {currentUser?.nickname === '_carawoo' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>개발자 도구</Text>
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.migrationButton]}
+              onPress={handleMigrateUsers}
+            >
+              <View style={styles.menuLeft}>
+                <Ionicons name="cloud-upload-outline" size={22} color="#007AFF" />
+                <Text style={[styles.menuText, { color: '#007AFF' }]}>사용자 데이터 마이그레이션</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 앱 정보 */}
         <View style={styles.section}>
