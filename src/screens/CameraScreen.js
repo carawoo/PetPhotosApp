@@ -152,8 +152,14 @@ export default function CameraScreen() {
 
   const startWebCamera = async () => {
     try {
+      // 고해상도 카메라 요청
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }, // 후면 카메라
+        video: {
+          facingMode: 'environment', // 후면 카메라
+          width: { ideal: 3840, max: 4096 },  // 4K 해상도
+          height: { ideal: 2160, max: 2160 },
+          aspectRatio: { ideal: 16/9 },
+        },
         audio: false,
       });
 
@@ -164,7 +170,21 @@ export default function CameraScreen() {
       }
     } catch (error) {
       console.error('웹 카메라 시작 오류:', error);
-      alert('카메라에 접근할 수 없습니다. 권한을 확인해주세요.');
+      // 고해상도 실패 시 기본 설정으로 재시도
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false,
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setWebStream(stream);
+          setWebCameraReady(true);
+        }
+      } catch (retryError) {
+        console.error('카메라 재시도 실패:', retryError);
+        alert('카메라에 접근할 수 없습니다. 권한을 확인해주세요.');
+      }
     }
   };
 
@@ -172,9 +192,10 @@ export default function CameraScreen() {
     if (videoRef.current) {
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
+      // 비디오의 실제 해상도 사용
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
 
       // 필터 적용
       const currentFilterStyle = filters.find(f => f.id === selectedFilter)?.filter || 'none';
@@ -182,8 +203,12 @@ export default function CameraScreen() {
         ctx.filter = currentFilterStyle;
       }
 
+      // 고품질 렌더링 설정
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(video, 0, 0);
 
+      // 최고 품질로 저장 (0.98)
       canvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob);
         setCapturedPhoto({ uri: url });
@@ -194,8 +219,36 @@ export default function CameraScreen() {
           webStream.getTracks().forEach(track => track.stop());
           setWebStream(null);
         }
-      }, 'image/jpeg', 0.95);
+      }, 'image/jpeg', 0.98);
     }
+  };
+
+  // 네이티브 카메라로 직접 촬영
+  const openNativeCamera = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // 후면 카메라 사용
+
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setCapturedPhoto({ uri: event.target.result });
+          setShowPostForm(true);
+
+          // 카메라 스트림 정지
+          if (webStream) {
+            webStream.getTracks().forEach(track => track.stop());
+            setWebStream(null);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    input.click();
   };
 
   // 웹이 아닌 경우에만 권한 체크
@@ -529,10 +582,11 @@ export default function CameraScreen() {
 
           <TouchableOpacity
             style={styles.webCaptureButton}
-            onPress={captureWebPhoto}
-            disabled={!webCameraReady}
+            onPress={openNativeCamera}
           >
-            <View style={styles.webCaptureButtonInner} />
+            <View style={styles.webCaptureButtonInner}>
+              <Ionicons name="camera" size={32} color="#FF3366" />
+            </View>
           </TouchableOpacity>
 
           <View style={{ width: 50 }} />
@@ -787,6 +841,8 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterScrollView: {
     position: 'absolute',

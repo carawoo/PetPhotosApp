@@ -91,6 +91,29 @@ export const deletePost = async (postId) => {
 };
 
 /**
+ * 모든 게시물 삭제 (관리자용)
+ */
+export const deleteAllPosts = async () => {
+  try {
+    const q = query(collection(db, 'posts'));
+    const snapshot = await getDocs(q);
+
+    let deleted = 0;
+    const deletePromises = snapshot.docs.map(async (docSnapshot) => {
+      await deleteDoc(docSnapshot.ref);
+      deleted++;
+    });
+
+    await Promise.all(deletePromises);
+    console.log(`✅ Deleted ${deleted} posts from Firestore`);
+    return { success: true, deleted };
+  } catch (error) {
+    console.error('Delete all posts error:', error);
+    throw error;
+  }
+};
+
+/**
  * 좋아요 토글
  */
 export const toggleLike = async (postId, userId, isLiked) => {
