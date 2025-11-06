@@ -12,10 +12,22 @@
 
 ### 방법 1: 브라우저 콘솔에서 실행 (권장)
 
-1. 앱을 실행합니다: `npm run web`
+1. 앱을 **로컬에서** 실행합니다: `npm run web` (localhost:8082)
 2. 브라우저 개발자 도구를 엽니다 (F12 또는 Cmd+Option+I)
 3. **Console** 탭을 선택합니다
-4. 아래 명령어 중 하나를 입력하고 Enter를 누릅니다:
+4. 아래 테스트 코드를 복사해서 콘솔에 붙여넣고 Enter를 누릅니다:
+
+```javascript
+// 테스트 함수 로드 (한 번만 실행)
+import('./src/__tests__/post.test.js').then(module => {
+  window.testLocalStoragePost = module.testLocalStoragePost;
+  window.testFirestorePost = module.testFirestorePost;
+  window.runAllPostTests = module.runAllPostTests;
+  console.log('✅ 테스트 함수 로드 완료!');
+});
+```
+
+5. 로드가 완료되면 아래 명령어로 테스트 실행:
 
 ```javascript
 // localStorage만 테스트
@@ -27,6 +39,8 @@ testFirestorePost()
 // 전체 테스트 (localStorage + Firestore)
 runAllPostTests()
 ```
+
+**참고**: 테스트는 개발 환경(localhost)에서만 사용할 수 있습니다. 프로덕션 빌드에는 포함되지 않습니다.
 
 ### 방법 2: 자동 테스트 (게시물 작성 후)
 

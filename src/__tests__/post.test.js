@@ -156,28 +156,21 @@ export async function runAllPostTests() {
  *
  * 1. 개발자 도구 열기 (F12)
  * 2. Console 탭 선택
- * 3. 아래 코드 복사 & 붙여넣기:
+ * 3. 테스트 모듈 로드:
  *
  * ```javascript
- * // localStorage 테스트만 실행
- * testLocalStoragePost();
+ * import('./src/__tests__/post.test.js').then(module => {
+ *   window.testLocalStoragePost = module.testLocalStoragePost;
+ *   window.testFirestorePost = module.testFirestorePost;
+ *   window.runAllPostTests = module.runAllPostTests;
+ *   console.log('✅ 테스트 함수 로드 완료!');
+ * });
+ * ```
  *
- * // Firestore 테스트만 실행
- * testFirestorePost();
- *
- * // 전체 테스트 실행
- * runAllPostTests();
+ * 4. 테스트 실행:
+ * ```javascript
+ * testLocalStoragePost();  // localStorage 테스트
+ * testFirestorePost();     // Firestore 테스트
+ * runAllPostTests();       // 전체 테스트
  * ```
  */
-
-// 개발 환경에서만 window에 테스트 함수 노출
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.testLocalStoragePost = testLocalStoragePost;
-  window.testFirestorePost = testFirestorePost;
-  window.runAllPostTests = runAllPostTests;
-
-  console.log('🧪 게시물 테스트 함수가 준비되었습니다:');
-  console.log('   - window.testLocalStoragePost()');
-  console.log('   - window.testFirestorePost()');
-  console.log('   - window.runAllPostTests()');
-}
