@@ -186,12 +186,17 @@ export default function FeedScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setSelectedPost(null)}
-          >
-            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.overlayBackground}
+              activeOpacity={1}
+              onPress={() => setSelectedPost(null)}
+            />
+            <View
+              style={styles.modalContent}
+              onStartShouldSetResponder={() => true}
+              onClick={(e) => e.stopPropagation()}
+            >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>댓글</Text>
                 <TouchableOpacity onPress={() => setSelectedPost(null)}>
@@ -224,6 +229,7 @@ export default function FeedScreen() {
                   value={commentText}
                   onChangeText={setCommentText}
                   multiline
+                  onClick={(e) => e.stopPropagation()}
                 />
                 <TouchableOpacity
                   onPress={submitComment}
@@ -237,7 +243,7 @@ export default function FeedScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -366,8 +372,15 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  overlayBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
     backgroundColor: '#fff',
@@ -375,6 +388,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingTop: 20,
     maxHeight: '80%',
+    zIndex: 1,
   },
   modalHeader: {
     flexDirection: 'row',

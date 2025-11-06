@@ -110,7 +110,11 @@ export default function FloatingActionButton() {
       {/* 서브 메뉴 */}
       {menuOpen && (
         <>
-          <View style={styles.overlay} onTouchEnd={() => setMenuOpen(false)} />
+          <TouchableOpacity
+            style={styles.overlay}
+            onPress={() => setMenuOpen(false)}
+            activeOpacity={1}
+          />
 
           <TouchableOpacity
             style={[styles.subFab, styles.cameraFab]}
@@ -171,7 +175,15 @@ export default function FloatingActionButton() {
         onRequestClose={() => setUploadModalVisible(false)}
       >
         <View style={styles.uploadModalOverlay}>
-          <View style={styles.uploadModalContent}>
+          <TouchableOpacity
+            style={styles.overlayTouchable}
+            activeOpacity={1}
+            onPress={() => setUploadModalVisible(false)}
+          />
+          <View
+            style={styles.uploadModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
             <View style={styles.uploadModalHeader}>
               <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
                 <Ionicons name="close" size={28} color="#333" />
@@ -192,6 +204,7 @@ export default function FloatingActionButton() {
                 placeholder="반려동물 이름 *"
                 value={petName}
                 onChangeText={setPetName}
+                onClick={(e) => e.stopPropagation()}
               />
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
@@ -200,6 +213,7 @@ export default function FloatingActionButton() {
                 onChangeText={setDescription}
                 multiline
                 numberOfLines={4}
+                onClick={(e) => e.stopPropagation()}
               />
               <TouchableOpacity style={styles.uploadButton} onPress={handleUpload}>
                 <Ionicons name="checkmark" size={24} color="#fff" />
@@ -317,15 +331,23 @@ const styles = StyleSheet.create({
   },
   uploadModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   uploadModalContent: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '90%',
     maxHeight: '80%',
+    zIndex: 1,
   },
   uploadModalHeader: {
     padding: 20,
