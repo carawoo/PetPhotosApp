@@ -46,14 +46,18 @@ if (typeof localStorage !== 'undefined') {
 function AppContent() {
   const { currentUser, loading, useFirebase } = useAuth();
   const [isAdminRoute, setIsAdminRoute] = useState(false);
+  const [isPublicRoute, setIsPublicRoute] = useState(false);
 
   useEffect(() => {
     // 웹에서만 경로 체크
     if (Platform.OS === 'web') {
       const pathname = window.location.pathname;
       const isAdmin = pathname === '/admin' || pathname === '/admin/';
-      console.log('🔍 Route check:', { pathname, isAdmin, Platform: Platform.OS });
+      // 프로필 경로는 로그인 없이도 접근 가능 (공개 경로)
+      const isPublic = pathname.startsWith('/profile/');
+      console.log('🔍 Route check:', { pathname, isAdmin, isPublic, Platform: Platform.OS });
       setIsAdminRoute(isAdmin);
+      setIsPublicRoute(isPublic);
     }
 
     // Firestore 상태 로그
@@ -62,6 +66,7 @@ function AppContent() {
 
   console.log('🎯 AppContent render:', {
     isAdminRoute,
+    isPublicRoute,
     loading,
     hasCurrentUser: !!currentUser,
     Platform: Platform.OS
@@ -86,8 +91,14 @@ function AppContent() {
     );
   }
 
-  console.log('🏠 Rendering main app:', currentUser ? 'AppNavigator' : 'LoginScreen');
-  return currentUser ? <AppNavigator /> : <LoginScreen />;
+  // 공개 경로이거나 로그인 되어있으면 앱 보여주기
+  if (currentUser || isPublicRoute) {
+    console.log('🏠 Rendering AppNavigator:', currentUser ? 'logged in' : 'public route');
+    return <AppNavigator />;
+  }
+
+  console.log('🔐 Rendering LoginScreen');
+  return <LoginScreen />;
 }
 
 export default function App() {

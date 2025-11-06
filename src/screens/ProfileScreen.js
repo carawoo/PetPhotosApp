@@ -27,7 +27,7 @@ import { getStorageKey } from '../config/environment';
 const { width } = Dimensions.get('window');
 const imageSize = width / 3 - 1;
 
-export default function ProfileScreen({ route }) {
+export default function ProfileScreen({ route, navigation }) {
   const { currentUser, logout, updateProfileImage, updateProfileBio } = useAuth();
   const { posts, toggleLike, addComment, deleteComment } = usePost();
   const [uploading, setUploading] = useState(false);
@@ -238,10 +238,26 @@ export default function ProfileScreen({ route }) {
   };
 
   const handleLike = (postId) => {
+    if (!currentUser) {
+      if (Platform.OS === 'web') {
+        alert('로그인이 필요한 기능입니다.');
+      } else {
+        Alert.alert('알림', '로그인이 필요한 기능입니다.');
+      }
+      return;
+    }
     toggleLike(postId);
   };
 
   const handleSubmitComment = () => {
+    if (!currentUser) {
+      if (Platform.OS === 'web') {
+        alert('로그인이 필요한 기능입니다.');
+      } else {
+        Alert.alert('알림', '로그인이 필요한 기능입니다.');
+      }
+      return;
+    }
     if (!commentText.trim() || !selectedPost) return;
 
     addComment(selectedPost.id, commentText.trim());
@@ -317,11 +333,22 @@ export default function ProfileScreen({ route }) {
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.username}>{profileUser?.nickname || 'Anonymous'}</Text>
-        {isOwnProfile && (
+        {!currentUser ? (
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                window.location.href = '/';
+              }
+            }}
+          >
+            <Text style={styles.loginButtonText}>로그인</Text>
+          </TouchableOpacity>
+        ) : isOwnProfile ? (
           <TouchableOpacity onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={28} color="#333" />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       {/* 프로필 정보 */}
@@ -656,6 +683,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1A1A1A',
     letterSpacing: -0.5,
+  },
+  loginButton: {
+    backgroundColor: '#FF3366',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   profileSection: {
     flexDirection: 'row',
