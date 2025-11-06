@@ -189,7 +189,11 @@ export default function FeedScreen() {
               )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => handlePostMenu(item)}>
+          <TouchableOpacity
+            onPress={() => handlePostMenu(item)}
+            style={styles.postMenuButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
           </TouchableOpacity>
         </View>
@@ -207,6 +211,7 @@ export default function FeedScreen() {
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => handleLike(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
                 name={isLiked ? "heart" : "heart-outline"}
@@ -217,17 +222,22 @@ export default function FeedScreen() {
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => handleComment(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="chatbubble-outline" size={26} color="#333" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => handleShare(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="share-outline" size={26} color="#333" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => Alert.alert('북마크', '북마크 기능은 준비 중입니다!')}>
+          <TouchableOpacity
+            onPress={() => Alert.alert('북마크', '북마크 기능은 준비 중입니다!')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="bookmark-outline" size={26} color="#333" />
           </TouchableOpacity>
         </View>
@@ -288,7 +298,10 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🐾 Pet Photos</Text>
-        <TouchableOpacity onPress={handleNotifications}>
+        <TouchableOpacity
+          onPress={handleNotifications}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="notifications-outline" size={28} color="#333" />
         </TouchableOpacity>
       </View>
@@ -466,6 +479,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  postMenuButton: {
+    padding: 8,
   },
   postImage: {
     width: width,
