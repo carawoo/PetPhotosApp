@@ -56,6 +56,7 @@ export const AuthProvider = ({ children }) => {
               profileImage: userData.profileImage,
               bio: userData.bio,
               contactInfo: userData.contactInfo,
+              pets: userData.pets || [], // 반려동물 목록
             };
             setCurrentUser(user);
             console.log('✅ Auto-login from Firestore');
@@ -179,6 +180,7 @@ export const AuthProvider = ({ children }) => {
         profileImage: firestoreUserData.profileImage,
         bio: firestoreUserData.bio,
         contactInfo: firestoreUserData.contactInfo,
+        pets: firestoreUserData.pets || [], // 반려동물 목록
       };
 
       setCurrentUser(user);
@@ -261,6 +263,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 반려동물 목록 업데이트 (Firestore 전용)
+  const updatePets = async (pets) => {
+    if (!currentUser) return { success: false, error: '로그인이 필요합니다.' };
+    if (!useFirebase || !firestoreService) {
+      return { success: false, error: 'Firestore가 필요합니다.' };
+    }
+
+    try {
+      const { doc, updateDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const userRef = doc(db, 'users', currentUser.id);
+      await updateDoc(userRef, { pets });
+      console.log('✅ Pets updated in Firestore');
+
+      // 현재 사용자 상태 업데이트
+      setCurrentUser({ ...currentUser, pets });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to update pets:', error);
+      return { success: false, error: '반려동물 목록 업데이트 실패' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -272,6 +299,7 @@ export const AuthProvider = ({ children }) => {
         isNicknameAvailable,
         updateProfileImage,
         updateProfileBio,
+        updatePets,
         useFirebase,
       }}
     >

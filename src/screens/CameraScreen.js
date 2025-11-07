@@ -660,14 +660,43 @@ export default function CameraScreen() {
           {/* 입력 폼 */}
           <View style={styles.formInputs}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>반려동물 이름 *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="예: 멍멍이, 냥냥이"
-                value={petName}
-                onChangeText={setPetName}
-                maxLength={20}
-              />
+              <Text style={styles.inputLabel}>반려동물 선택 *</Text>
+              {currentUser?.pets && currentUser.pets.length > 0 ? (
+                <View style={styles.petsChipsContainer}>
+                  {currentUser.pets.map((pet, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.petChipButton,
+                        petName === pet && styles.petChipButtonActive
+                      ]}
+                      onPress={() => setPetName(pet)}
+                    >
+                      <Ionicons
+                        name="paw"
+                        size={16}
+                        color={petName === pet ? '#fff' : '#FF3366'}
+                      />
+                      <Text style={[
+                        styles.petChipButtonText,
+                        petName === pet && styles.petChipButtonTextActive
+                      ]}>
+                        {pet}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.noPetsContainer}>
+                  <Ionicons name="paw-outline" size={32} color="#ccc" />
+                  <Text style={styles.noPetsText}>
+                    등록된 반려동물이 없습니다
+                  </Text>
+                  <Text style={styles.noPetsSubText}>
+                    설정에서 반려동물을 먼저 등록해주세요
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -1597,5 +1626,52 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  petsChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  petChipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFE8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  petChipButtonActive: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  petChipButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  petChipButtonTextActive: {
+    color: '#fff',
+  },
+  noPetsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  noPetsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginTop: 12,
+  },
+  noPetsSubText: {
+    fontSize: 12,
+    color: '#AEAEB2',
+    marginTop: 6,
   },
 });

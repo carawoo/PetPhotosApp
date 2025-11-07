@@ -8,15 +8,19 @@ import {
   Modal,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import InquiryScreen from './InquiryScreen';
 
 export default function SettingsScreen({ navigation }) {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updatePets } = useAuth();
   const [showInquiryScreen, setShowInquiryScreen] = useState(false);
   const [showReportHistory, setShowReportHistory] = useState(false);
+  const [showPetManager, setShowPetManager] = useState(false);
+  const [pets, setPets] = useState(currentUser?.pets || []);
+  const [newPetName, setNewPetName] = useState('');
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -40,6 +44,53 @@ export default function SettingsScreen({ navigation }) {
         ]
       );
     }
+  };
+
+  // 반려동물 추가
+  const handleAddPet = async () => {
+    if (!newPetName.trim()) {
+      if (Platform.OS === 'web') {
+        alert('반려동물 이름을 입력해주세요.');
+      } else {
+        Alert.alert('알림', '반려동물 이름을 입력해주세요.');
+      }
+      return;
+    }
+
+    const updatedPets = [...pets, newPetName.trim()];
+    setPets(updatedPets);
+    setNewPetName('');
+
+    const result = await updatePets(updatedPets);
+    if (result.success) {
+      if (Platform.OS === 'web') {
+        alert('반려동물이 추가되었습니다!');
+      } else {
+        Alert.alert('성공', '반려동물이 추가되었습니다!');
+      }
+    }
+  };
+
+  // 반려동물 삭제
+  const handleDeletePet = async (petName) => {
+    const confirmDelete = Platform.OS === 'web'
+      ? window.confirm(`${petName}을(를) 삭제하시겠습니까?`)
+      : await new Promise((resolve) => {
+          Alert.alert(
+            '삭제 확인',
+            `${petName}을(를) 삭제하시겠습니까?`,
+            [
+              { text: '취소', onPress: () => resolve(false), style: 'cancel' },
+              { text: '삭제', onPress: () => resolve(true), style: 'destructive' },
+            ]
+          );
+        });
+
+    if (!confirmDelete) return;
+
+    const updatedPets = pets.filter(p => p !== petName);
+    setPets(updatedPets);
+    await updatePets(updatedPets);
   };
 
   const handleDeleteAccount = async () => {
@@ -217,6 +268,27 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        {/* 반려동물 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>반려동물</Text>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => setShowPetManager(true)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="paw-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>반려동물 관리</Text>
+            </View>
+            <View style={styles.menuRight}>
+              {pets.length > 0 && (
+                <Text style={styles.countBadge}>{pets.length}</Text>
+              )}
+              <Ionicons name="chevron-forward" size={20} color="#AEAEB2" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* 지원 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>지원</Text>
@@ -359,6 +431,69 @@ export default function SettingsScreen({ navigation }) {
               )}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* 반려동물 관리 모달 */}
+      <Modal
+        visible={showPetManager}
+        animationType="slide"
+        transparent={false}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPetManager(false)}>
+              <Ionicons name="close" size={28} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>반려동물 관리</Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* 반려동물 추가 */}
+            <View style={styles.addPetContainer}>
+              <TextInput
+                style={styles.petInput}
+                placeholder="반려동물 이름을 입력하세요"
+                value={newPetName}
+                onChangeText={setNewPetName}
+                maxLength={20}
+              />
+              <TouchableOpacity style={styles.addButton} onPress={handleAddPet}>
+                <Ionicons name="add" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* 반려동물 목록 */}
+            <View style={styles.petsListContainer}>
+              <Text style={styles.petsListTitle}>
+                등록된 반려동물 ({pets.length})
+              </Text>
+              {pets.length === 0 ? (
+                <View style={styles.emptyPets}>
+                  <Ionicons name="paw-outline" size={64} color="#ccc" />
+                  <Text style={styles.emptyPetsText}>
+                    등록된 반려동물이 없습니다
+                  </Text>
+                  <Text style={styles.emptyPetsSubText}>
+                    위에서 반려동물 이름을 추가해보세요
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.petsChips}>
+                  {pets.map((pet, index) => (
+                    <View key={index} style={styles.petChip}>
+                      <Ionicons name="paw" size={16} color="#FF3366" />
+                      <Text style={styles.petChipText}>{pet}</Text>
+                      <TouchableOpacity onPress={() => handleDeletePet(pet)}>
+                        <Ionicons name="close-circle" size={20} color="#999" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -557,5 +692,88 @@ const styles = StyleSheet.create({
   statusResolved: {
     backgroundColor: '#D4EDDA',
     color: '#155724',
+  },
+  menuRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countBadge: {
+    backgroundColor: '#FF3366',
+    color: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  addPetContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  petInput: {
+    flex: 1,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  addButton: {
+    backgroundColor: '#FF3366',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petsListContainer: {
+    padding: 20,
+    paddingTop: 0,
+  },
+  petsListTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  emptyPets: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyPetsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginTop: 16,
+  },
+  emptyPetsSubText: {
+    fontSize: 14,
+    color: '#AEAEB2',
+    marginTop: 8,
+  },
+  petsChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  petChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFE8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  petChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
   },
 });
