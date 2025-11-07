@@ -661,26 +661,44 @@ export default function CameraScreen() {
               {currentUser?.pets && currentUser.pets.length > 0 ? (
                 <View style={styles.petsChipsContainer}>
                   {currentUser.pets.map((pet, index) => (
-                    <TouchableOpacity
+                    <View
                       key={index}
                       style={[
                         styles.petChipButton,
                         petName === pet && styles.petChipButtonActive
                       ]}
-                      onPress={() => setPetName(pet)}
                     >
-                      <Ionicons
-                        name="paw"
-                        size={16}
-                        color={petName === pet ? '#fff' : '#FF3366'}
-                      />
-                      <Text style={[
-                        styles.petChipButtonText,
-                        petName === pet && styles.petChipButtonTextActive
-                      ]}>
-                        {pet}
-                      </Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.petChipButtonContent}
+                        onPress={() => setPetName(pet)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="paw"
+                          size={16}
+                          color={petName === pet ? '#fff' : '#FF3366'}
+                        />
+                        <Text style={[
+                          styles.petChipButtonText,
+                          petName === pet && styles.petChipButtonTextActive
+                        ]}>
+                          {pet}
+                        </Text>
+                      </TouchableOpacity>
+                      {petName === pet && (
+                        <TouchableOpacity
+                          style={styles.petChipRemoveButton}
+                          onPress={() => setPetName('')}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={20}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   ))}
                 </View>
               ) : (
@@ -1644,6 +1662,15 @@ const styles = StyleSheet.create({
   petChipButtonActive: {
     backgroundColor: '#FF3366',
     borderColor: '#FF3366',
+  },
+  petChipButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petChipRemoveButton: {
+    marginLeft: 4,
+    padding: 2,
   },
   petChipButtonText: {
     fontSize: 15,

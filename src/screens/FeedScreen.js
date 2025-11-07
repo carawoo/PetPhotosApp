@@ -31,7 +31,9 @@ export default function FeedScreen() {
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
-  const [editPetName, setEditPetName] = useState('');
+  const [editPetInputText, setEditPetInputText] = useState('');
+  const [editLocalPets, setEditLocalPets] = useState([]);
+  const [editSelectedPet, setEditSelectedPet] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [menuPost, setMenuPost] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -226,33 +228,75 @@ export default function FeedScreen() {
     setMenuPost(post);
   };
 
+  // 콤마 입력 처리 - 태그 추가 (Edit)
+  const handleEditPetInputChange = (text) => {
+    if (text.endsWith(',')) {
+      const newPetName = text.slice(0, -1).trim();
+      if (newPetName && !editLocalPets.includes(newPetName)) {
+        setEditLocalPets([...editLocalPets, newPetName]);
+        if (!editSelectedPet) {
+          setEditSelectedPet(newPetName);
+        }
+      }
+      setEditPetInputText('');
+    } else {
+      setEditPetInputText(text);
+    }
+  };
+
+  // 칩 삭제 (Edit)
+  const handleEditRemovePet = (petToRemove) => {
+    setEditLocalPets(editLocalPets.filter(p => p !== petToRemove));
+    if (editSelectedPet === petToRemove) {
+      setEditSelectedPet(editLocalPets.find(p => p !== petToRemove) || '');
+    }
+  };
+
+  // 칩 선택 (Edit)
+  const handleEditSelectPet = (pet) => {
+    setEditSelectedPet(pet);
+  };
+
   const handleEditPost = (post) => {
     setMenuPost(null);
     setEditingPost(post);
-    setEditPetName(post.petName || '');
+    // 초기화: 현재 게시물의 petName을 첫 번째 칩으로 설정
+    setEditLocalPets([post.petName]);
+    setEditSelectedPet(post.petName);
+    setEditPetInputText('');
     setEditDescription(post.description || '');
   };
 
   const submitPostEdit = () => {
-    if (!editPetName.trim()) {
+    if (!editSelectedPet && editLocalPets.length === 0) {
       Alert.alert('알림', '반려동물 이름을 입력해주세요.');
       return;
     }
 
+    const finalPetName = editSelectedPet || editLocalPets[0];
+    if (!finalPetName) {
+      Alert.alert('알림', '반려동물을 선택해주세요.');
+      return;
+    }
+
     updatePost(editingPost.id, {
-      petName: editPetName.trim(),
+      petName: finalPetName.trim(),
       description: editDescription.trim(),
     });
 
     setEditingPost(null);
-    setEditPetName('');
+    setEditPetInputText('');
+    setEditLocalPets([]);
+    setEditSelectedPet('');
     setEditDescription('');
     Alert.alert('수정 완료', '게시물이 수정되었습니다.');
   };
 
   const cancelPostEdit = () => {
     setEditingPost(null);
-    setEditPetName('');
+    setEditPetInputText('');
+    setEditLocalPets([]);
+    setEditSelectedPet('');
     setEditDescription('');
   };
 
@@ -659,41 +703,81 @@ export default function FeedScreen() {
               )}
 
               <View style={styles.formContainer}>
-              {/* 반려동물 선택 (칩 형태) */}
+              {/* 반려동물 선택 */}
               <View style={styles.petSelectionContainer}>
                 <Text style={styles.petSelectionLabel}>반려동물 *</Text>
 
-                {/* 새 반려동물 추가 입력 */}
-                <View style={styles.addPetInputContainer}>
-                  <TextInput
-                    style={styles.addPetInput}
-                    placeholder="새 반려동물 이름 입력"
-                    value={editPetName}
-                    onChangeText={setEditPetName}
-                    maxLength={20}
-                  />
-                </View>
+                {/* 이름 입력란 (콤마로 태그 추가) */}
+                <TextInput
+                  style={styles.addPetInput}
+                  placeholder="이름 입력 후 콤마(,)로 추가"
+                  value={editPetInputText}
+                  onChangeText={handleEditPetInputChange}
+                  maxLength={20}
+                />
 
-                {/* 기존 반려동물 칩 */}
-                {currentUser?.pets && currentUser.pets.length > 0 && (
+                {/* 추가된 태그 칩 */}
+                {editLocalPets.length > 0 && (
                   <View style={styles.petChipsContainer}>
-                    {currentUser.pets.map((pet, index) => (
+                    {editLocalPets.map((pet, index) => (
                       <TouchableOpacity
                         key={index}
-                        style={styles.editPetChipButton}
-                        onPress={() => setEditPetName(pet)}
+                        style={[
+                          styles.petChip,
+                          editSelectedPet === pet && styles.petChipSelected
+                        ]}
+                        onPress={() => handleEditSelectPet(pet)}
                         activeOpacity={0.7}
                       >
                         <Ionicons
                           name="paw"
                           size={16}
-                          color="#FF3366"
+                          color={editSelectedPet === pet ? "#FFFFFF" : "#FF3366"}
                         />
-                        <Text style={styles.editPetChipButtonText}>
+                        <Text style={[
+                          styles.petChipText,
+                          editSelectedPet === pet && styles.petChipTextSelected
+                        ]}>
                           {pet}
                         </Text>
+                        <TouchableOpacity
+                          onPress={() => handleEditRemovePet(pet)}
+                          style={styles.petChipRemoveButton}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={18}
+                            color={editSelectedPet === pet ? "#FFFFFF" : "#999"}
+                          />
+                        </TouchableOpacity>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                )}
+
+                {/* 등록된 반려동물 빠른 추가 */}
+                {currentUser?.pets && currentUser.pets.length > 0 && (
+                  <View style={styles.registeredPetsContainer}>
+                    <Text style={styles.registeredPetsLabel}>등록된 반려동물</Text>
+                    <View style={styles.petChipsContainer}>
+                      {currentUser.pets.map((pet, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.registeredPetChip}
+                          onPress={() => {
+                            if (!editLocalPets.includes(pet)) {
+                              setEditLocalPets([...editLocalPets, pet]);
+                              setEditSelectedPet(pet);
+                            }
+                          }}
+                          disabled={editLocalPets.includes(pet)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add-circle-outline" size={16} color="#FF3366" />
+                          <Text style={styles.registeredPetChipText}>{pet}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 )}
               </View>
@@ -1430,9 +1514,6 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 12,
   },
-  addPetInputContainer: {
-    marginBottom: 12,
-  },
   addPetInput: {
     borderWidth: 2,
     borderColor: '#E5E5EA',
@@ -1442,43 +1523,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A1A1A',
     backgroundColor: '#FFFFFF',
+    marginBottom: 12,
   },
   petChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    marginTop: 12,
   },
-  editPetChipButton: {
+  petChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF0F5',
     borderRadius: 20,
-    paddingVertical: 10,
-    paddingLeft: 16,
-    paddingRight: 16,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
     borderWidth: 2,
     borderColor: '#FFE8F0',
+    gap: 6,
   },
-  editPetChipButtonActive: {
+  petChipSelected: {
     backgroundColor: '#FF3366',
     borderColor: '#FF3366',
   },
-  editPetChipButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  editPetChipButtonText: {
+  petChipText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#FF3366',
   },
-  editPetChipButtonTextActive: {
+  petChipTextSelected: {
     color: '#FFFFFF',
   },
-  editPetChipRemoveButton: {
-    marginLeft: 4,
+  petChipRemoveButton: {
     padding: 2,
+  },
+  registeredPetsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  registeredPetsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  registeredPetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 6,
+  },
+  registeredPetChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
   },
   noPetsText: {
     fontSize: 14,
