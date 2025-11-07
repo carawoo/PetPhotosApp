@@ -227,7 +227,9 @@ export default function ProfileScreen({ route, navigation }) {
 
       const shareContent = {
         title: `${profileUser?.nickname}의 반려동물 사진첩`,
+        text: `${profileUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개`,
         message: `${profileUser?.nickname}님의 반려동물 사진첩을 확인해보세요!\n게시물 ${userPosts.length}개 | 좋아요 ${userPosts.reduce((sum, post) => sum + post.likes, 0)}개\n\n${profileUrl}`,
+        url: profileUrl,
       };
 
       console.log('📝 Share content:', shareContent.message);
@@ -235,7 +237,27 @@ export default function ProfileScreen({ route, navigation }) {
       if (Platform.OS === 'web') {
         console.log('🌐 Web platform detected');
 
-        // 웹에서는 클립보드에 복사
+        // 웹 환경: Web Share API 우선 사용 (시스템 공유 기능)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: shareContent.title,
+              text: shareContent.text,
+              url: shareContent.url,
+            });
+            console.log('✅ Web Share API successful');
+            return; // 성공하면 종료
+          } catch (error) {
+            // 사용자가 공유를 취소한 경우 (AbortError)
+            if (error.name === 'AbortError') {
+              console.log('ℹ️ User cancelled share');
+              return;
+            }
+            console.warn('⚠️ Web Share API failed, falling back to clipboard:', error);
+          }
+        }
+
+        // 폴백: 클립보드 복사
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             console.log('📋 Using Clipboard API');
@@ -277,7 +299,7 @@ export default function ProfileScreen({ route, navigation }) {
         }
       } else {
         console.log('📱 Mobile platform detected');
-        // 모바일에서는 Share API 사용
+        // 모바일에서는 React Native Share API 사용
         await Share.share({
           title: shareContent.title,
           message: shareContent.message,
