@@ -1,7 +1,33 @@
 {
-  "buildCommand": "npx expo export --platform web && node inject-meta-tags.js && node rename-assets.js && cp public/sitemap.xml public/robots.txt public/favicon*.png public/icon.png dist/",
+  "buildCommand": "npx expo export --platform web && node inject-meta-tags.js && cp public/sitemap.xml public/robots.txt public/favicon*.png public/icon.png dist/",
   "outputDirectory": "dist",
   "devCommand": "npx expo start --web",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "routes": [
+    {
+      "src": "/_expo/.*",
+      "dest": "/$0"
+    },
+    {
+      "src": "/assets/.*",
+      "dest": "/$0"
+    },
+    {
+      "src": "/favicon.*",
+      "dest": "/$0"
+    },
+    {
+      "src": "/icon\\.png",
+      "dest": "/$0"
+    },
+    {
+      "src": "/(sitemap\\.xml|robots\\.txt)",
+      "dest": "/$0"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
