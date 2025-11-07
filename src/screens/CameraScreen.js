@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
@@ -1023,37 +1022,31 @@ export default function CameraScreen() {
     );
   }
 
+  // 모바일: 버튼으로 네이티브 카메라 열기
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        {/* 상단 컨트롤 */}
-        <View style={styles.topControls}>
-          <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="flash-outline" size={28} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="settings-outline" size={28} color="#fff" />
-          </TouchableOpacity>
+      <View style={styles.cameraPlaceholder}>
+        <View style={styles.cameraIconContainer}>
+          <Ionicons name="camera" size={80} color="#fff" />
+          <Text style={styles.cameraPlaceholderText}>사진을 찍거나 선택하세요</Text>
         </View>
 
         {/* 하단 컨트롤 */}
         <View style={styles.bottomControls}>
           <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
             <Ionicons name="images-outline" size={32} color="#fff" />
+            <Text style={styles.buttonLabel}>갤러리</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
             <View style={styles.captureButtonInner} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.flipButton}
-            onPress={toggleCameraFacing}
-          >
-            <Ionicons name="camera-reverse-outline" size={32} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.placeholderButton}>
+            <Text style={styles.buttonLabel}>촬영</Text>
+          </View>
         </View>
-      </CameraView>
+      </View>
     </View>
   );
 }
@@ -1520,6 +1513,22 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+  cameraPlaceholder: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIconContainer: {
+    alignItems: 'center',
+    marginBottom: 100,
+  },
+  cameraPlaceholderText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 20,
+    opacity: 0.7,
+  },
   topControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1545,11 +1554,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   galleryButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonLabel: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  placeholderButton: {
     alignItems: 'center',
   },
   captureButton: {
