@@ -24,8 +24,8 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "Pet Photos - 반려동물 사진첩",
-      "shortName": "Pet Photos",
+      "name": "Peto - 반려동물 사진첩",
+      "shortName": "Peto",
       "description": "반려동물 사진을 공유하는 소셜 네트워크 앱",
       "themeColor": "#FF6B6B",
       "backgroundColor": "#ffffff",
