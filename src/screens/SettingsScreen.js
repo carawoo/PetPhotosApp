@@ -464,62 +464,64 @@ export default function SettingsScreen({ navigation }) {
       <Modal
         visible={showPetManager}
         animationType="slide"
-        transparent={false}
+        transparent={true}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowPetManager(false)}>
-              <Ionicons name="close" size={28} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>반려동물 관리</Text>
-            <View style={{ width: 28 }} />
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* 반려동물 추가 */}
-            <View style={styles.addPetContainer}>
-              <TextInput
-                style={styles.petInput}
-                placeholder="반려동물 이름을 입력하세요"
-                value={newPetName}
-                onChangeText={setNewPetName}
-                maxLength={20}
-              />
-              <TouchableOpacity style={styles.addButton} onPress={handleAddPet}>
-                <Ionicons name="add" size={24} color="#fff" />
+          <View style={styles.petManagerContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowPetManager(false)}>
+                <Ionicons name="close" size={28} color="#333" />
               </TouchableOpacity>
+              <Text style={styles.modalTitle}>반려동물 관리</Text>
+              <View style={{ width: 28 }} />
             </View>
 
-            {/* 반려동물 목록 */}
-            <View style={styles.petsListContainer}>
-              <Text style={styles.petsListTitle}>
-                등록된 반려동물 ({pets.length})
-              </Text>
-              {pets.length === 0 ? (
-                <View style={styles.emptyPets}>
-                  <Ionicons name="paw-outline" size={64} color="#ccc" />
-                  <Text style={styles.emptyPetsText}>
-                    등록된 반려동물이 없습니다
-                  </Text>
-                  <Text style={styles.emptyPetsSubText}>
-                    위에서 반려동물 이름을 추가해보세요
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.petsChips}>
-                  {pets.map((pet, index) => (
-                    <View key={index} style={styles.petChip}>
-                      <Ionicons name="paw" size={16} color="#FF3366" />
-                      <Text style={styles.petChipText}>{pet}</Text>
-                      <TouchableOpacity onPress={() => handleDeletePet(pet)}>
-                        <Ionicons name="close-circle" size={20} color="#999" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
+            <ScrollView style={styles.petManagerScroll}>
+              {/* 반려동물 추가 */}
+              <View style={styles.addPetContainer}>
+                <TextInput
+                  style={styles.petInput}
+                  placeholder="반려동물 이름을 입력하세요"
+                  value={newPetName}
+                  onChangeText={setNewPetName}
+                  maxLength={20}
+                />
+                <TouchableOpacity style={styles.addButton} onPress={handleAddPet}>
+                  <Ionicons name="add" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* 반려동물 목록 */}
+              <View style={styles.petsListContainer}>
+                <Text style={styles.petsListTitle}>
+                  등록된 반려동물 ({pets.length})
+                </Text>
+                {pets.length === 0 ? (
+                  <View style={styles.emptyPets}>
+                    <Ionicons name="paw-outline" size={64} color="#ccc" />
+                    <Text style={styles.emptyPetsText}>
+                      등록된 반려동물이 없습니다
+                    </Text>
+                    <Text style={styles.emptyPetsSubText}>
+                      위에서 반려동물 이름을 추가해보세요
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.petsChips}>
+                    {pets.map((pet, index) => (
+                      <View key={index} style={styles.petChip}>
+                        <Ionicons name="paw" size={16} color="#FF3366" />
+                        <Text style={styles.petChipText}>{pet}</Text>
+                        <TouchableOpacity onPress={() => handleDeletePet(pet)}>
+                          <Ionicons name="close-circle" size={20} color="#999" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -787,6 +789,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  petManagerContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    width: '100%',
+  },
+  petManagerScroll: {
+    flex: 1,
+    paddingBottom: 40,
   },
   petChip: {
     flexDirection: 'row',
