@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://petphotos.vercel.app/sitemap.xml
+Sitemap: https://peto.vercel.app/sitemap.xml
