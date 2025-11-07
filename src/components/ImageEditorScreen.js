@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,14 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../contexts/AuthContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCancel }) {
   const [selectedFilter, setSelectedFilter] = useState('normal');
@@ -30,6 +32,13 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
   const [showSaveFilterModal, setShowSaveFilterModal] = useState(false);
   const [filterName, setFilterName] = useState('');
   const [isCropping, setIsCropping] = useState(false);
+
+  // 크롭 모드 상태
+  const [cropMode, setCropMode] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [scale, setScale] = useState(1);
+  const panX = useRef(new Animated.Value(0)).current;
+  const panY = useRef(new Animated.Value(0)).current;
 
   const { currentUser } = useAuth();
 
@@ -49,7 +58,50 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
   // 커스텀 필터 로드
   useEffect(() => {
     loadCustomFilters();
-  }, []);
+    loadImageSize();
+  }, [imageUri]);
+
+  // 이미지 크기 로드
+  const loadImageSize = () => {
+    if (Platform.OS === 'web') {
+      const img = new window.Image();
+      img.onload = () => {
+        setImageSize({ width: img.width, height: img.height });
+      };
+      img.src = croppedUri || imageUri;
+    } else {
+      Image.getSize(
+        croppedUri || imageUri,
+        (width, height) => {
+          setImageSize({ width, height });
+        },
+        (error) => console.error('Failed to get image size:', error)
+      );
+    }
+  };
+
+  // PanResponder for dragging image in crop mode
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => cropMode,
+      onMoveShouldSetPanResponder: () => cropMode,
+      onPanResponderMove: Animated.event(
+        [
+          null,
+          { dx: panX, dy: panY },
+        ],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => {
+        panX.flattenOffset();
+        panY.flattenOffset();
+      },
+      onPanResponderGrant: () => {
+        panX.setOffset(panX._value);
+        panY.setOffset(panY._value);
+      },
+    })
+  ).current;
 
   const loadCustomFilters = async () => {
     try {
@@ -72,34 +124,74 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
     }
   };
 
-  // 1:1 크롭 함수
-  const handleCrop = async () => {
+  // 크롭 모드 토글
+  const toggleCropMode = () => {
+    if (cropMode) {
+      // 크롭 취소
+      setCropMode(false);
+      panX.setValue(0);
+      panY.setValue(0);
+      setScale(1);
+    } else {
+      // 크롭 모드 시작
+      setCropMode(true);
+    }
+  };
+
+  // 1:1 크롭 적용
+  const applyCrop = async () => {
     try {
       setIsCropping(true);
       const currentUri = croppedUri || imageUri;
 
-      // 이미지 크기 가져오기
-      const imageInfo = await new Promise((resolve, reject) => {
-        if (Platform.OS === 'web') {
-          const img = new window.Image();
-          img.onload = () => resolve({ width: img.width, height: img.height });
-          img.onerror = reject;
-          img.src = currentUri;
-        } else {
-          Image.getSize(
-            currentUri,
-            (width, height) => resolve({ width, height }),
-            reject
-          );
-        }
-      });
+      // 화면상의 이미지 컨테이너 크기
+      const containerWidth = SCREEN_WIDTH;
+      const containerHeight = 400; // imageContainer height
 
-      const { width, height } = imageInfo;
-      const size = Math.min(width, height);
-      const originX = (width - size) / 2;
-      const originY = (height - size) / 2;
+      // 실제 이미지 크기
+      const { width: imgWidth, height: imgHeight } = imageSize;
 
-      // 1:1 정사각형으로 크롭
+      // 이미지가 컨테이너에 맞춰진 실제 크기 계산
+      const imageAspect = imgWidth / imgHeight;
+      const containerAspect = containerWidth / containerHeight;
+
+      let displayWidth, displayHeight;
+      if (imageAspect > containerAspect) {
+        // 이미지가 더 넓음 - 높이 기준
+        displayHeight = containerHeight;
+        displayWidth = displayHeight * imageAspect;
+      } else {
+        // 이미지가 더 높음 - 너비 기준
+        displayWidth = containerWidth;
+        displayHeight = displayWidth / imageAspect;
+      }
+
+      // 크롭 박스 크기 (1:1, 화면의 80%)
+      const cropBoxSize = Math.min(containerWidth, containerHeight) * 0.8;
+
+      // Pan과 Scale 적용
+      const scaledWidth = displayWidth * scale;
+      const scaledHeight = displayHeight * scale;
+
+      // 화면상의 크롭 박스 중심 좌표
+      const cropCenterX = containerWidth / 2;
+      const cropCenterY = containerHeight / 2;
+
+      // 이미지 중심 좌표 (pan 적용)
+      const imageCenterX = containerWidth / 2 + panX._value;
+      const imageCenterY = containerHeight / 2 + panY._value;
+
+      // 크롭 박스의 좌상단 좌표 (이미지 기준)
+      const cropX = cropCenterX - cropBoxSize / 2 - (imageCenterX - scaledWidth / 2);
+      const cropY = cropCenterY - cropBoxSize / 2 - (imageCenterY - scaledHeight / 2);
+
+      // 실제 이미지 좌표로 변환
+      const scaleRatio = imgWidth / scaledWidth;
+      const originX = Math.max(0, Math.min(cropX * scaleRatio, imgWidth));
+      const originY = Math.max(0, Math.min(cropY * scaleRatio, imgHeight));
+      const cropSize = cropBoxSize * scaleRatio;
+
+      // 크롭 적용
       const manipResult = await ImageManipulator.manipulateAsync(
         currentUri,
         [
@@ -107,8 +199,8 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
             crop: {
               originX,
               originY,
-              width: size,
-              height: size,
+              width: Math.min(cropSize, imgWidth - originX),
+              height: Math.min(cropSize, imgHeight - originY),
             },
           },
         ],
@@ -116,11 +208,18 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
       );
 
       setCroppedUri(manipResult.uri);
+      setCropMode(false);
+      panX.setValue(0);
+      panY.setValue(0);
+      setScale(1);
+
+      // 새 이미지 크기 로드
+      setTimeout(loadImageSize, 100);
 
       if (Platform.OS === 'web') {
-        alert('✅ 1:1 비율로 크롭되었습니다!');
+        alert('✅ 크롭이 적용되었습니다!');
       } else {
-        Alert.alert('완료', '1:1 비율로 크롭되었습니다!');
+        Alert.alert('완료', '크롭이 적용되었습니다!');
       }
     } catch (error) {
       console.error('Crop error:', error);
@@ -270,41 +369,133 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
 
         {/* 이미지 미리보기 */}
         <View style={styles.imageContainer}>
-          {Platform.OS === 'web' ? (
-            React.createElement('img', {
-              src: croppedUri || imageUri,
-              alt: 'Preview',
-              style: {
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                filter: getFilterStyle(),
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={[
+              styles.imageWrapper,
+              {
+                transform: [
+                  { translateX: cropMode ? panX : 0 },
+                  { translateY: cropMode ? panY : 0 },
+                  { scale: cropMode ? scale : 1 },
+                ],
               },
-            })
-          ) : (
-            <Image
-              source={{ uri: croppedUri || imageUri }}
-              style={styles.image}
-              resizeMode="contain"
-            />
+            ]}
+          >
+            {Platform.OS === 'web' ? (
+              React.createElement('img', {
+                src: croppedUri || imageUri,
+                alt: 'Preview',
+                style: {
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter: cropMode ? 'none' : getFilterStyle(),
+                },
+              })
+            ) : (
+              <Image
+                source={{ uri: croppedUri || imageUri }}
+                style={styles.image}
+                resizeMode="contain"
+              />
+            )}
+          </Animated.View>
+
+          {/* 크롭 박스 오버레이 */}
+          {cropMode && (
+            <View style={styles.cropOverlay} pointerEvents="none">
+              {/* 어두운 영역 */}
+              <View style={styles.cropDarkTop} />
+              <View style={styles.cropMiddleRow}>
+                <View style={styles.cropDarkSide} />
+                <View style={styles.cropBox}>
+                  {/* 크롭 박스 테두리 */}
+                  <View style={styles.cropBoxBorder} />
+                  {/* 그리드 라인 */}
+                  <View style={styles.cropGrid}>
+                    <View style={styles.cropGridLine} />
+                    <View style={styles.cropGridLine} />
+                    <View style={[styles.cropGridLine, styles.cropGridLineHorizontal]} />
+                    <View style={[styles.cropGridLine, styles.cropGridLineHorizontal]} />
+                  </View>
+                </View>
+                <View style={styles.cropDarkSide} />
+              </View>
+              <View style={styles.cropDarkBottom} />
+            </View>
           )}
 
           {/* 크롭 버튼 */}
-          <TouchableOpacity
-            style={styles.cropButton}
-            onPress={handleCrop}
-            disabled={isCropping}
-          >
-            {isCropping ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="crop" size={20} color="#fff" />
-                <Text style={styles.cropButtonText}>1:1</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {!cropMode && (
+            <TouchableOpacity
+              style={styles.cropButton}
+              onPress={toggleCropMode}
+            >
+              <Ionicons name="crop" size={20} color="#fff" />
+              <Text style={styles.cropButtonText}>1:1</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* 크롭 모드 컨트롤 */}
+        {cropMode && (
+          <View style={styles.cropControls}>
+            <Text style={styles.cropInstructions}>
+              드래그하여 위치 조정, 확대/축소로 원하는 부분 선택
+            </Text>
+            <Text style={styles.cropControlsTitle}>확대/축소</Text>
+            {Platform.OS === 'web' ? (
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.1"
+                value={scale}
+                onChange={(e) => setScale(parseFloat(e.target.value))}
+                style={{
+                  width: '100%',
+                  marginBottom: 20,
+                }}
+              />
+            ) : (
+              <View style={styles.scaleSliderContainer}>
+                <TouchableOpacity
+                  onPress={() => setScale(Math.max(1, scale - 0.1))}
+                  style={styles.scaleButton}
+                >
+                  <Ionicons name="remove" size={24} color="#666" />
+                </TouchableOpacity>
+                <Text style={styles.scaleValue}>{scale.toFixed(1)}x</Text>
+                <TouchableOpacity
+                  onPress={() => setScale(Math.min(3, scale + 0.1))}
+                  style={styles.scaleButton}
+                >
+                  <Ionicons name="add" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.cropButtonsRow}>
+              <TouchableOpacity
+                style={[styles.cropActionButton, styles.cropCancelButton]}
+                onPress={toggleCropMode}
+              >
+                <Text style={styles.cropCancelButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.cropActionButton, styles.cropApplyButton]}
+                onPress={applyCrop}
+                disabled={isCropping}
+              >
+                {isCropping ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.cropApplyButtonText}>적용</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* 조정 도구 */}
         {activeAdjustment && (
@@ -351,9 +542,10 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
         )}
 
         {/* 하단 도구 */}
-        <View style={styles.toolsContainer}>
-          {/* 필터 또는 조정 탭 */}
-          {!activeAdjustment ? (
+        {!cropMode && (
+          <View style={styles.toolsContainer}>
+            {/* 필터 또는 조정 탭 */}
+            {!activeAdjustment ? (
             <>
               {/* 필터 스크롤 */}
               <ScrollView
@@ -456,7 +648,8 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
               <Text style={styles.doneAdjustButtonText}>완료</Text>
             </TouchableOpacity>
           )}
-        </View>
+          </View>
+        )}
 
         {/* 커스텀 필터 저장 모달 */}
         <Modal
@@ -531,6 +724,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
+  },
+  imageWrapper: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   image: {
     width: '100%',
@@ -552,6 +752,136 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  cropOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cropDarkTop: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  cropMiddleRow: {
+    flexDirection: 'row',
+    width: '100%',
+  },
+  cropDarkSide: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  cropBox: {
+    width: Math.min(SCREEN_WIDTH, 400) * 0.8,
+    height: Math.min(SCREEN_WIDTH, 400) * 0.8,
+    position: 'relative',
+  },
+  cropBoxBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 4,
+  },
+  cropGrid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  cropGridLine: {
+    width: 1,
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  cropGridLineHorizontal: {
+    position: 'absolute',
+    width: '100%',
+    height: 1,
+    top: '33.33%',
+  },
+  cropDarkBottom: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  cropControls: {
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  cropInstructions: {
+    fontSize: 13,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  cropControlsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  scaleSliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  scaleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scaleValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3366',
+    minWidth: 60,
+    textAlign: 'center',
+  },
+  cropButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cropActionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cropCancelButton: {
+    backgroundColor: '#F5F5F7',
+  },
+  cropCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8E8E93',
+  },
+  cropApplyButton: {
+    backgroundColor: '#FF3366',
+  },
+  cropApplyButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   adjustmentPanel: {
     backgroundColor: '#F8F9FA',
