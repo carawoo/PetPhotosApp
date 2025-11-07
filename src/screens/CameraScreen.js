@@ -95,14 +95,14 @@ export default function CameraScreen() {
 
   // 웹 카메라 초기화
   useEffect(() => {
-    if (Platform.OS === 'web' && !showPostForm && !capturedPhoto) {
+    if (Platform.OS === 'web' && !showPostForm && capturedPhotos.length === 0) {
       startWebCamera();
     }
 
     return () => {
       // cleanup
     };
-  }, [showPostForm, capturedPhoto]);
+  }, [showPostForm, capturedPhotos]);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
