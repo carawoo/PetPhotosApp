@@ -574,109 +574,165 @@ export default function FeedScreen({ route }) {
         }
       />
 
-      {/* 댓글 모달 */}
+      {/* 게시물 상세 모달 */}
       <Modal
         visible={selectedPost !== null}
         animationType="slide"
-        transparent={true}
+        transparent={false}
         onRequestClose={closeCommentModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity
-              style={styles.overlayBackground}
-              activeOpacity={1}
-              onPress={closeCommentModal}
-            />
-            <View
-              style={styles.modalContent}
-              onStartShouldSetResponder={() => true}
-              onResponderTerminationRequest={() => false}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>댓글</Text>
-                <TouchableOpacity onPress={closeCommentModal}>
-                  <Ionicons name="close" size={28} color="#333" />
-                </TouchableOpacity>
-              </View>
+        <View style={styles.postModalContainer}>
+          {/* Header */}
+          <View style={styles.postModalHeader}>
+            <TouchableOpacity onPress={closeCommentModal}>
+              <Ionicons name="arrow-back" size={28} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.postModalTitle}>게시물</Text>
+            <View style={{ width: 28 }} />
+          </View>
 
-              {/* 댓글 목록 */}
-              <FlatList
-                data={selectedPost?.comments || []}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentHeader}>
-                      <View style={styles.commentLeft}>
-                        <Text style={styles.commentAuthor}>{item.author}</Text>
-                        {item.updatedAt && (
-                          <Text style={styles.editedLabel}>(수정됨)</Text>
-                        )}
-                      </View>
-                      {item.authorId === currentUser?.id && (
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e?.stopPropagation?.();
-                            handleCommentMenu(item);
-                          }}
-                          style={styles.commentMenuButton}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
-                        </TouchableOpacity>
+          {/* Content */}
+          <ScrollView style={styles.postModalScrollView}>
+            {selectedPost && (
+              <View style={styles.postDetailContainer}>
+                {/* 작성자 정보 */}
+                <View style={styles.postAuthorInfo}>
+                  <View style={styles.authorLeft}>
+                    <View style={styles.avatarContainer}>
+                      {currentUser?.profileImage ? (
+                        <Image source={{ uri: currentUser.profileImage }} style={styles.avatar} />
+                      ) : (
+                        <Ionicons name="paw" size={20} color="#FF3366" />
                       )}
                     </View>
-                    <Text style={styles.commentText}>{item.text}</Text>
-                    <Text style={styles.commentTime}>{getTimeAgo(item.createdAt)}</Text>
+                    <View>
+                      <Text style={styles.authorName}>{selectedPost.author}</Text>
+                      {selectedPost.petName && (
+                        <Text style={styles.petNameSmall}>{selectedPost.petName}</Text>
+                      )}
+                    </View>
                   </View>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.noComments}>아직 댓글이 없습니다</Text>
-                }
-                style={styles.commentsList}
-              />
+                </View>
 
-              {/* 댓글 입력 */}
-              <View>
-                {editingComment && (
-                  <View style={styles.editingIndicator}>
-                    <Text style={styles.editingText}>댓글 수정 중...</Text>
-                    <TouchableOpacity onPress={cancelEdit}>
-                      <Ionicons name="close" size={20} color="#666" />
+                {/* 이미지 슬라이더 */}
+                <ImageSlider images={selectedPost.images || [selectedPost.imageUrl]} />
+
+                {/* 액션 버튼들 */}
+                <View style={styles.actionsContainer}>
+                  <View style={styles.leftActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => toggleLike(selectedPost.id)}
+                    >
+                      <Ionicons
+                        name={selectedPost.likedBy?.includes(currentUser?.id) ? "heart" : "heart-outline"}
+                        size={28}
+                        color={selectedPost.likedBy?.includes(currentUser?.id) ? "#FF3366" : "#333"}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionButton}>
+                      <Ionicons name="chatbubble-outline" size={26} color="#333" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleShare(selectedPost)}
+                    >
+                      <Ionicons name="share-outline" size={26} color="#333" />
                     </TouchableOpacity>
                   </View>
+                </View>
+
+                {/* 좋아요 수 */}
+                <Text style={styles.likes}>좋아요 {selectedPost.likes || 0}개</Text>
+
+                {/* 설명 */}
+                {selectedPost.description && (
+                  <View style={styles.captionContainer}>
+                    <Text style={styles.caption}>
+                      <Text style={styles.authorName}>{selectedPost.author}</Text>{' '}
+                      {selectedPost.description}
+                    </Text>
+                  </View>
                 )}
-                <View
-                  style={styles.commentInputContainer}
-                  onStartShouldSetResponder={() => true}
-                  onResponderTerminationRequest={() => false}
-                >
-                  <TextInput
-                    style={styles.commentInput}
-                    placeholder={editingComment ? "댓글 수정..." : "댓글을 입력하세요..."}
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    multiline
-                    onStartShouldSetResponder={() => true}
-                  />
-                  <TouchableOpacity
-                    onPress={submitComment}
-                    disabled={!commentText.trim()}
-                  >
-                    <Ionicons
-                      name={editingComment ? "checkmark" : "send"}
-                      size={24}
-                      color={commentText.trim() ? "#FF3366" : "#ccc"}
-                    />
-                  </TouchableOpacity>
+
+                {/* 시간 */}
+                <Text style={styles.timestamp}>
+                  {getTimeAgo(selectedPost.createdAt)}
+                </Text>
+
+                {/* 댓글 섹션 */}
+                <View style={styles.commentsSection}>
+                  <Text style={styles.commentsSectionTitle}>댓글</Text>
+                  {selectedPost.comments && selectedPost.comments.length > 0 ? (
+                    selectedPost.comments.map((comment) => (
+                      <View key={comment.id} style={styles.commentItem}>
+                        <View style={styles.commentHeader}>
+                          <View style={styles.commentLeft}>
+                            <Text style={styles.commentAuthor}>{comment.author}</Text>
+                            {comment.updatedAt && (
+                              <Text style={styles.editedLabel}>(수정됨)</Text>
+                            )}
+                          </View>
+                          {comment.authorId === currentUser?.id && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e?.stopPropagation?.();
+                                handleCommentMenu(comment);
+                              }}
+                              style={styles.commentMenuButton}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <Text style={styles.commentText}>{comment.text}</Text>
+                        <Text style={styles.commentTime}>{getTimeAgo(comment.createdAt)}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noComments}>첫 댓글을 남겨보세요!</Text>
+                  )}
                 </View>
               </View>
+            )}
+          </ScrollView>
+
+          {/* 댓글 입력 (하단 고정) */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.postCommentInputContainer}
+          >
+            {editingComment && (
+              <View style={styles.editingIndicator}>
+                <Text style={styles.editingText}>댓글 수정 중...</Text>
+                <TouchableOpacity onPress={cancelEdit}>
+                  <Ionicons name="close" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder={editingComment ? "댓글 수정..." : "댓글을 입력하세요..."}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.submitCommentButton, !commentText.trim() && styles.submitCommentButtonDisabled]}
+                onPress={submitComment}
+                disabled={!commentText.trim()}
+              >
+                <Ionicons
+                  name={editingComment ? "checkmark" : "send"}
+                  size={24}
+                  color={commentText.trim() ? "#FF3366" : "#AEAEB2"}
+                />
+              </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* 게시물 수정 모달 */}
@@ -1925,5 +1981,130 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: '#8E8E93',
+  },
+  // 게시물 모달 스타일
+  postModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  postModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  postModalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  postModalScrollView: {
+    flex: 1,
+  },
+  postDetailContainer: {
+    backgroundColor: '#FFFFFF',
+  },
+  postAuthorInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  authorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8F9FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  petNameSmall: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  leftActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  actionButton: {
+    padding: 4,
+  },
+  captionContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  caption: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#000000',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#8E8E93',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  commentsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  commentsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  noComments: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  postCommentInputContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  submitCommentButton: {
+    padding: 4,
+  },
+  submitCommentButtonDisabled: {
+    opacity: 0.5,
   },
 });
