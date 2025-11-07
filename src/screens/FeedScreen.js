@@ -61,10 +61,11 @@ export default function FeedScreen() {
   };
 
   const handleComment = (post) => {
-    // 비회원은 로그인 필요
+    // 비회원은 로그인 화면으로 이동
     if (!currentUser) {
       if (Platform.OS === 'web') {
-        window.alert('댓글을 작성하려면 로그인이 필요합니다.\n상단의 로그인 버튼을 클릭해주세요.');
+        localStorage.setItem('peto_requestLogin', 'true');
+        window.location.reload();
       } else {
         Alert.alert(
           '로그인 필요',
