@@ -24,6 +24,7 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotNickname, setForgotNickname] = useState('');
+  const [forgotContactInfo, setForgotContactInfo] = useState('');
   const [foundPassword, setFoundPassword] = useState('');
   const { signup, login, isNicknameAvailable } = useAuth();
 
@@ -103,13 +104,40 @@ export default function LoginScreen() {
       return;
     }
 
-    // 보안상 이유로 자동 비밀번호 찾기 제거 - 관리자 연락 필요
-    setFoundPassword('confirmed');
+    if (!forgotContactInfo.trim()) {
+      if (Platform.OS === 'web') {
+        alert('가입 시 등록한 연락처를 입력해주세요.');
+      } else {
+        Alert.alert('알림', '가입 시 등록한 연락처를 입력해주세요.');
+      }
+      return;
+    }
+
+    // 이메일로 전송
+    const subject = encodeURIComponent('[Peto] 비밀번호 재설정 요청');
+    const body = encodeURIComponent(
+      `비밀번호 재설정 요청\n\n` +
+      `닉네임: ${forgotNickname}\n` +
+      `가입 시 등록한 연락처: ${forgotContactInfo}\n\n` +
+      `위 정보로 비밀번호 재설정을 도와주세요.`
+    );
+    const mailtoUrl = `mailto:carawoo96@gmail.com?subject=${subject}&body=${body}`;
+
+    if (Platform.OS === 'web') {
+      window.open(mailtoUrl, '_blank');
+      setFoundPassword('confirmed');
+    } else {
+      // 모바일에서는 Linking 사용
+      // import { Linking } from 'react-native';
+      // Linking.openURL(mailtoUrl);
+      setFoundPassword('confirmed');
+    }
   };
 
   const closeForgotPassword = () => {
     setShowForgotPassword(false);
     setForgotNickname('');
+    setForgotContactInfo('');
     setFoundPassword('');
   };
 
@@ -274,9 +302,21 @@ export default function LoginScreen() {
               <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="관리자에게 전달할 닉네임 입력"
+                placeholder="계란후라이"
                 value={forgotNickname}
                 onChangeText={setForgotNickname}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="가입 시 등록한 연락처"
+                value={forgotContactInfo}
+                onChangeText={setForgotContactInfo}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
