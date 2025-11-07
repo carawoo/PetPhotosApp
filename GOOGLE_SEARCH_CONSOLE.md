@@ -2,7 +2,7 @@
 
 ## 1. 준비사항
 
-- 사이트 URL: `https://peto.vercel.app`
+- 사이트 URL: `https://peto.real-e.space`
 - Google 계정 필요
 
 ## 2. Google Search Console 등록하기
@@ -14,7 +14,7 @@
 ### 2-2. 속성 추가
 1. 좌측 상단 "속성 추가" 클릭
 2. **"URL 접두어"** 선택 (도메인 방식은 DNS 설정 필요)
-3. URL 입력: `https://peto.vercel.app`
+3. URL 입력: `https://peto.real-e.space`
 4. "계속" 클릭
 
 ### 2-3. 소유권 확인
@@ -38,7 +38,7 @@
 소유권 확인 후 제출할 사이트맵 URL:
 
 ```
-https://peto.vercel.app/sitemap.xml
+https://peto.real-e.space/sitemap.xml
 ```
 
 ### 3-2. 제출 방법
@@ -55,7 +55,7 @@ https://peto.vercel.app/sitemap.xml
 
 robots.txt도 자동으로 배포됩니다:
 ```
-https://peto.vercel.app/robots.txt
+https://peto.real-e.space/robots.txt
 ```
 
 브라우저에서 위 URL로 접속하여 정상 동작 확인 가능
@@ -63,8 +63,8 @@ https://peto.vercel.app/robots.txt
 ## 5. 배포 후 확인사항
 
 다음 URL들이 정상적으로 접근 가능한지 확인:
-- ✅ https://peto.vercel.app/sitemap.xml
-- ✅ https://peto.vercel.app/robots.txt
+- ✅ https://peto.real-e.space/sitemap.xml
+- ✅ https://peto.real-e.space/robots.txt
 
 ## 6. 주의사항
 
@@ -97,5 +97,5 @@ sitemap.xml
 
 또는 전체 URL:
 ```
-https://peto.vercel.app/sitemap.xml
+https://peto.real-e.space/sitemap.xml
 ```

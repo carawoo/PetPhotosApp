@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://peto.vercel.app/sitemap.xml
+Sitemap: https://peto.real-e.space/sitemap.xml
