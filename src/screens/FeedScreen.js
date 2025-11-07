@@ -23,7 +23,7 @@ import ImageSlider from '../components/ImageSlider';
 
 const { width } = Dimensions.get('window');
 
-export default function FeedScreen({ route }) {
+export default function FeedScreen({ route, navigation }) {
   const { posts, loading, toggleLike, addComment, updateComment, deleteComment, deletePost, updatePost } = usePost();
   const { currentUser } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
@@ -1273,7 +1273,7 @@ export default function FeedScreen({ route }) {
       </Modal>
 
       {/* 플로팅 액션 버튼 */}
-      <FloatingActionButton />
+      <FloatingActionButton navigation={navigation} />
     </View>
   );
 }

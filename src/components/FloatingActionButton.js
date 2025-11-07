@@ -18,7 +18,7 @@ import { usePost } from '../contexts/PostContext';
 import { useAuth } from '../contexts/AuthContext';
 import ImageEditorScreen from './ImageEditorScreen';
 
-export default function FloatingActionButton() {
+export default function FloatingActionButton({ navigation }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -31,6 +31,31 @@ export default function FloatingActionButton() {
   const [uploading, setUploading] = useState(false);
   const { addPost } = usePost();
   const { currentUser } = useAuth();
+
+  // 로그인 체크 함수
+  const checkLogin = () => {
+    if (!currentUser) {
+      setMenuOpen(false);
+      Alert.alert(
+        '로그인이 필요합니다',
+        '게시물을 작성하려면 로그인이 필요합니다.',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '로그인',
+            onPress: () => {
+              // 프로필 탭으로 이동 (로그인 화면)
+              if (navigation) {
+                navigation.navigate('Profile');
+              }
+            },
+          },
+        ]
+      );
+      return false;
+    }
+    return true;
+  };
 
   // 콤마 또는 스페이스바 입력 처리 - 태그 추가
   const handlePetInputChange = (text) => {
@@ -90,6 +115,9 @@ export default function FloatingActionButton() {
   };
 
   const openCamera = async () => {
+    // 로그인 체크
+    if (!checkLogin()) return;
+
     setMenuOpen(false);
 
     // 디바이스 네이티브 카메라 사용 (고해상도)
@@ -107,6 +135,9 @@ export default function FloatingActionButton() {
   };
 
   const openGallery = async () => {
+    // 로그인 체크
+    if (!checkLogin()) return;
+
     setMenuOpen(false);
 
     const result = await ImagePicker.launchImageLibraryAsync({
