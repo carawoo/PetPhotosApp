@@ -264,15 +264,20 @@ export default function FloatingActionButton() {
               </TouchableOpacity>
             </View>
 
-            {selectedImage && (
-              <Image
-                source={{ uri: selectedImage }}
-                style={styles.previewImage}
-                resizeMode="cover"
-              />
-            )}
+            <ScrollView
+              style={styles.uploadModalScrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {selectedImage && (
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
+              )}
 
-            <View style={styles.formContainer}>
+              <View style={styles.formContainer}>
               {/* 반려동물 선택 (칩 형태) */}
               <View style={styles.petSelectionContainer}>
                 <Text style={styles.petSelectionLabel}>반려동물 *</Text>
@@ -353,6 +358,7 @@ export default function FloatingActionButton() {
                 )}
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -558,6 +564,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     fontStyle: 'italic',
+  },
+  uploadModalScrollView: {
+    flex: 1,
   },
   uploadButton: {
     backgroundColor: '#FF6B6B',

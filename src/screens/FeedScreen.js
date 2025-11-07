@@ -645,15 +645,20 @@ export default function FeedScreen() {
               </TouchableOpacity>
             </View>
 
-            {editingPost && (
-              <Image
-                source={{ uri: editingPost.imageUrl }}
-                style={styles.previewImage}
-                resizeMode="cover"
-              />
-            )}
+            <ScrollView
+              style={styles.editModalScrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {editingPost && (
+                <Image
+                  source={{ uri: editingPost.imageUrl }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
+              )}
 
-            <View style={styles.formContainer}>
+              <View style={styles.formContainer}>
               {/* 반려동물 선택 (칩 형태) */}
               <View style={styles.petSelectionContainer}>
                 <Text style={styles.petSelectionLabel}>반려동물 *</Text>
@@ -719,6 +724,7 @@ export default function FeedScreen() {
                 <Text style={styles.uploadButtonText}>수정 완료</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1479,6 +1485,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     fontStyle: 'italic',
+  },
+  editModalScrollView: {
+    flex: 1,
   },
   uploadButton: {
     backgroundColor: '#FF3366',
