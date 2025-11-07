@@ -28,7 +28,9 @@ export default function CameraScreen() {
   const [showPostForm, setShowPostForm] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
   const [tempImageUri, setTempImageUri] = useState(null);
-  const [petName, setPetName] = useState('');
+  const [petInputText, setPetInputText] = useState('');
+  const [localPets, setLocalPets] = useState([]);
+  const [selectedPet, setSelectedPet] = useState('');
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const MAX_PHOTOS = 5; // 최대 5장
@@ -50,6 +52,62 @@ export default function CameraScreen() {
 
   const { currentUser } = useAuth();
   const { addPost } = usePost();
+
+  // 콤마 또는 스페이스바 입력 처리 - 태그 추가
+  const handlePetInputChange = (text) => {
+    // 콤마나 스페이스로 끝나면 태그 추가
+    if (text.endsWith(',') || text.endsWith(' ')) {
+      const newPetName = text.slice(0, -1).trim();
+      if (newPetName && !localPets.includes(newPetName)) {
+        setLocalPets([...localPets, newPetName]);
+        if (!selectedPet) {
+          setSelectedPet(newPetName);
+        }
+        // 사용자 설정에 자동 추가
+        addPetToUserSettings(newPetName);
+      }
+      setPetInputText('');
+    } else {
+      setPetInputText(text);
+    }
+  };
+
+  // 반려동물을 사용자 설정에 자동 추가
+  const addPetToUserSettings = async (petName) => {
+    try {
+      if (!currentUser) return;
+
+      // 이미 등록된 경우 건너뛰기
+      if (currentUser.pets && currentUser.pets.includes(petName)) {
+        return;
+      }
+
+      const { doc, updateDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const userRef = doc(db, 'users', currentUser.id);
+      const updatedPets = [...(currentUser.pets || []), petName];
+
+      await updateDoc(userRef, { pets: updatedPets });
+
+      console.log(`✅ ${petName} 자동으로 설정에 추가됨`);
+    } catch (error) {
+      console.error('Failed to add pet to settings:', error);
+    }
+  };
+
+  // 칩 삭제
+  const handleRemovePet = (petToRemove) => {
+    setLocalPets(localPets.filter(p => p !== petToRemove));
+    if (selectedPet === petToRemove) {
+      setSelectedPet(localPets.find(p => p !== petToRemove) || '');
+    }
+  };
+
+  // 칩 선택
+  const handleSelectPet = (pet) => {
+    setSelectedPet(pet);
+  };
 
   // 🔒 로그인 체크 - 비로그인 사용자는 촬영/게시물 작성 불가
   if (!currentUser) {
@@ -510,11 +568,21 @@ export default function CameraScreen() {
   };
 
   const handlePost = async () => {
-    if (!petName.trim()) {
+    if (!selectedPet && localPets.length === 0) {
       if (Platform.OS === 'web') {
         alert('반려동물 이름을 입력해주세요.');
       } else {
         Alert.alert('알림', '반려동물 이름을 입력해주세요.');
+      }
+      return;
+    }
+
+    const finalPetName = selectedPet || localPets[0];
+    if (!finalPetName) {
+      if (Platform.OS === 'web') {
+        alert('반려동물을 선택해주세요.');
+      } else {
+        Alert.alert('알림', '반려동물을 선택해주세요.');
       }
       return;
     }
@@ -567,7 +635,7 @@ export default function CameraScreen() {
 
       // 게시물 생성 (images 배열로 전달)
       await addPost({
-        petName: petName.trim(),
+        petName: finalPetName.trim(),
         description: description.trim(),
         images: processedImages, // 배열로 전달
       });
@@ -576,7 +644,9 @@ export default function CameraScreen() {
       setCapturedPhotos([]);
       setCurrentPhotoIndex(0);
       setShowPostForm(false);
-      setPetName('');
+      setPetInputText('');
+      setLocalPets([]);
+      setSelectedPet('');
       setDescription('');
       setSelectedFilter('normal'); // 필터 초기화
       setUploading(false);
@@ -605,7 +675,9 @@ export default function CameraScreen() {
     setCapturedPhotos([]);
     setCurrentPhotoIndex(0);
     setShowPostForm(false);
-    setPetName('');
+    setPetInputText('');
+    setLocalPets([]);
+    setSelectedPet('');
     setDescription('');
     setSelectedFilter('normal'); // 필터 초기화
 
@@ -697,60 +769,84 @@ export default function CameraScreen() {
 
           {/* 입력 폼 */}
           <View style={styles.formInputs}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>반려동물 선택 *</Text>
-              {currentUser?.pets && currentUser.pets.length > 0 ? (
-                <View style={styles.petsChipsContainer}>
-                  {currentUser.pets.map((pet, index) => (
-                    <View
+            {/* 반려동물 선택 */}
+            <View style={styles.petSelectionContainer}>
+              <Text style={styles.petSelectionLabel}>반려동물 *</Text>
+
+              {/* 이름 입력란 (콤마 또는 스페이스로 태그 추가) */}
+              <TextInput
+                style={styles.addPetInput}
+                placeholder="이름 입력 후 스페이스 또는 콤마"
+                value={petInputText}
+                onChangeText={handlePetInputChange}
+                editable={!uploading}
+                maxLength={20}
+              />
+
+              {/* 추가된 태그 칩 */}
+              {localPets.length > 0 && (
+                <View style={styles.petChipsContainer}>
+                  {localPets.map((pet, index) => (
+                    <TouchableOpacity
                       key={index}
                       style={[
-                        styles.petChipButton,
-                        petName === pet && styles.petChipButtonActive
+                        styles.petChip,
+                        selectedPet === pet && styles.petChipSelected
                       ]}
+                      onPress={() => handleSelectPet(pet)}
+                      disabled={uploading}
+                      activeOpacity={0.7}
                     >
+                      <Ionicons
+                        name="paw"
+                        size={16}
+                        color={selectedPet === pet ? "#FFFFFF" : "#FF3366"}
+                      />
+                      <Text style={[
+                        styles.petChipText,
+                        selectedPet === pet && styles.petChipTextSelected
+                      ]}>
+                        {pet}
+                      </Text>
                       <TouchableOpacity
-                        style={styles.petChipButtonContent}
-                        onPress={() => setPetName(pet)}
-                        activeOpacity={0.7}
+                        onPress={() => handleRemovePet(pet)}
+                        disabled={uploading}
+                        style={styles.petChipRemoveButton}
                       >
                         <Ionicons
-                          name="paw"
-                          size={16}
-                          color={petName === pet ? '#fff' : '#FF3366'}
+                          name="close-circle"
+                          size={18}
+                          color={selectedPet === pet ? "#FFFFFF" : "#999"}
                         />
-                        <Text style={[
-                          styles.petChipButtonText,
-                          petName === pet && styles.petChipButtonTextActive
-                        ]}>
-                          {pet}
-                        </Text>
                       </TouchableOpacity>
-                      {petName === pet && (
-                        <TouchableOpacity
-                          style={styles.petChipRemoveButton}
-                          onPress={() => setPetName('')}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Ionicons
-                            name="close-circle"
-                            size={20}
-                            color="#fff"
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
-              ) : (
-                <View style={styles.noPetsContainer}>
-                  <Ionicons name="paw-outline" size={32} color="#ccc" />
-                  <Text style={styles.noPetsText}>
-                    등록된 반려동물이 없습니다
-                  </Text>
-                  <Text style={styles.noPetsSubText}>
-                    설정에서 반려동물을 먼저 등록해주세요
-                  </Text>
+              )}
+
+              {/* 등록된 반려동물 빠른 추가 */}
+              {currentUser?.pets && currentUser.pets.length > 0 && (
+                <View style={styles.registeredPetsContainer}>
+                  <Text style={styles.registeredPetsLabel}>등록된 반려동물</Text>
+                  <View style={styles.petChipsContainer}>
+                    {currentUser.pets.map((pet, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.registeredPetChip}
+                        onPress={() => {
+                          if (!localPets.includes(pet)) {
+                            setLocalPets([...localPets, pet]);
+                            setSelectedPet(pet);
+                          }
+                        }}
+                        disabled={uploading || localPets.includes(pet)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add-circle-outline" size={16} color="#FF3366" />
+                        <Text style={styles.registeredPetChipText}>{pet}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -1764,5 +1860,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#AEAEB2',
     marginTop: 6,
+  },
+  // FloatingActionButton과 동일한 스타일
+  petSelectionContainer: {
+    marginBottom: 20,
+  },
+  petSelectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  addPetInput: {
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
+  },
+  petChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 12,
+  },
+  petChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFE8F0',
+    gap: 6,
+  },
+  petChipSelected: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  petChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  petChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  registeredPetsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  registeredPetsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  registeredPetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 6,
+  },
+  registeredPetChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
   },
 });

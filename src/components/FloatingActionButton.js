@@ -32,19 +32,47 @@ export default function FloatingActionButton() {
   const { addPost } = usePost();
   const { currentUser } = useAuth();
 
-  // 콤마 입력 처리 - 태그 추가
+  // 콤마 또는 스페이스바 입력 처리 - 태그 추가
   const handlePetInputChange = (text) => {
-    if (text.endsWith(',')) {
+    // 콤마나 스페이스로 끝나면 태그 추가
+    if (text.endsWith(',') || text.endsWith(' ')) {
       const newPetName = text.slice(0, -1).trim();
       if (newPetName && !localPets.includes(newPetName)) {
         setLocalPets([...localPets, newPetName]);
         if (!selectedPet) {
           setSelectedPet(newPetName);
         }
+        // 사용자 설정에 자동 추가
+        addPetToUserSettings(newPetName);
       }
       setPetInputText('');
     } else {
       setPetInputText(text);
+    }
+  };
+
+  // 반려동물을 사용자 설정에 자동 추가
+  const addPetToUserSettings = async (petName) => {
+    try {
+      if (!currentUser) return;
+
+      // 이미 등록된 경우 건너뛰기
+      if (currentUser.pets && currentUser.pets.includes(petName)) {
+        return;
+      }
+
+      const { doc, updateDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const userRef = doc(db, 'users', currentUser.id);
+      const updatedPets = [...(currentUser.pets || []), petName];
+
+      await updateDoc(userRef, { pets: updatedPets });
+
+      // 로컬 currentUser 업데이트 (AuthContext refresh 필요)
+      console.log(`✅ ${petName} 자동으로 설정에 추가됨`);
+    } catch (error) {
+      console.error('Failed to add pet to settings:', error);
     }
   };
 
@@ -277,6 +305,8 @@ export default function FloatingActionButton() {
               >
                 <Ionicons name="close" size={28} color={uploading ? "#ccc" : "#333"} />
               </TouchableOpacity>
+              <Text style={styles.uploadModalTitle}>새 게시물</Text>
+              <View style={{ width: 28 }} />
             </View>
 
             <ScrollView
@@ -310,10 +340,10 @@ export default function FloatingActionButton() {
               <View style={styles.petSelectionContainer}>
                 <Text style={styles.petSelectionLabel}>반려동물 *</Text>
 
-                {/* 이름 입력란 (콤마로 태그 추가) */}
+                {/* 이름 입력란 (콤마 또는 스페이스로 태그 추가) */}
                 <TextInput
                   style={styles.addPetInput}
-                  placeholder="이름 입력 후 콤마(,)로 추가"
+                  placeholder="이름 입력 후 스페이스 또는 콤마"
                   value={petInputText}
                   onChangeText={handlePetInputChange}
                   editable={!uploading}
@@ -404,12 +434,9 @@ export default function FloatingActionButton() {
                 disabled={uploading}
               >
                 {uploading ? (
-                  <>
-                    <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.uploadingText}>업로드 중...</Text>
-                  </>
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.uploadButtonText}>업로드</Text>
+                  <Text style={styles.uploadButtonText}>게시하기</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -491,8 +518,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   uploadModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
-    alignItems: 'flex-end',
+  },
+  uploadModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
   },
   previewImage: {
     width: '100%',
