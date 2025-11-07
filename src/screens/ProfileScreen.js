@@ -23,6 +23,7 @@ import { compressImage } from '../utils/imageCompression';
 import SettingsScreen from './SettingsScreen';
 import AdminDashboardScreen from './AdminDashboardScreen';
 import { getStorageKey } from '../config/environment';
+import ImageSlider from '../components/ImageSlider';
 
 // Firebase 서비스 (optional)
 let firestoreService = null;
@@ -635,12 +636,8 @@ export default function ProfileScreen({ route, navigation }) {
                   </View>
                 </View>
 
-                {/* 이미지 */}
-                <Image
-                  source={{ uri: selectedPost.imageUrl }}
-                  style={styles.postDetailImage}
-                  resizeMode="cover"
-                />
+                {/* 이미지 슬라이더 */}
+                <ImageSlider images={selectedPost.images || [selectedPost.imageUrl]} />
 
                 {/* 액션 버튼들 */}
                 <View style={styles.actionsContainer}>

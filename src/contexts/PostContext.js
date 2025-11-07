@@ -76,30 +76,42 @@ export const PostProvider = ({ children }) => {
 
   const addPost = async (post) => {
     try {
-      let imageUrl = post.imageUrl;
+      // images 배열 또는 단일 imageUrl 지원 (하위 호환성)
+      const images = post.images || (post.imageUrl ? [post.imageUrl] : []);
 
-      // 이미지 압축 (Base64인 경우)
-      // Firestore 문서 크기 제한(1MB)을 고려하여 최대 600KB로 압축
-      if (imageUrl.startsWith('data:image')) {
-        console.log('📦 Original image size:', formatBase64Size(imageUrl));
-        setUploadProgress(10);
+      if (images.length === 0) {
+        throw new Error('이미지가 필요합니다');
+      }
 
-        try {
-          // 최대 1200px, 품질 0.85로 압축 (Firestore 1MB 제한 고려)
-          imageUrl = await compressImage(imageUrl, 1200, 1200, 0.85);
-          const compressedSize = formatBase64Size(imageUrl);
-          console.log('✅ Compressed image size:', compressedSize);
-          setUploadProgress(30);
+      // 여러 이미지 압축
+      const compressedImages = [];
+      setUploadProgress(10);
 
-          // 압축 후에도 너무 크면 경고
-          const sizeInKB = getBase64Size(imageUrl) / 1024;
-          if (sizeInKB > 800) {
-            console.warn('⚠️ Compressed image is still large:', Math.round(sizeInKB), 'KB');
+      for (let i = 0; i < images.length; i++) {
+        let imageUrl = images[i];
+
+        // 이미지 압축 (Base64인 경우)
+        if (imageUrl.startsWith('data:image')) {
+          console.log(`📦 Original image ${i + 1} size:`, formatBase64Size(imageUrl));
+
+          try {
+            // 최대 1200px, 품질 0.85로 압축 (Firestore 1MB 제한 고려)
+            imageUrl = await compressImage(imageUrl, 1200, 1200, 0.85);
+            const compressedSize = formatBase64Size(imageUrl);
+            console.log(`✅ Compressed image ${i + 1} size:`, compressedSize);
+
+            // 압축 후에도 너무 크면 경고
+            const sizeInKB = getBase64Size(imageUrl) / 1024;
+            if (sizeInKB > 800) {
+              console.warn(`⚠️ Compressed image ${i + 1} is still large:`, Math.round(sizeInKB), 'KB');
+            }
+          } catch (compressionError) {
+            console.warn(`⚠️ Image ${i + 1} compression failed:`, compressionError.message);
           }
-        } catch (compressionError) {
-          console.warn('⚠️ Image compression failed, using original:', compressionError.message);
-          // 압축 실패 시 원본 사용 (에러는 발생시키지 않음)
         }
+
+        compressedImages.push(imageUrl);
+        setUploadProgress(10 + ((i + 1) / images.length) * 20);
       }
 
       // Firebase Storage 시도 (실패하면 Base64 사용)
@@ -120,7 +132,8 @@ export const PostProvider = ({ children }) => {
       }
 
       const newPostData = {
-        imageUrl,
+        images: compressedImages, // 여러 이미지 지원
+        imageUrl: compressedImages[0], // 하위 호환성을 위해 첫 번째 이미지
         petName: post.petName,
         description: post.description || '',
         author: currentUser?.nickname || 'Anonymous',

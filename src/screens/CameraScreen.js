@@ -26,11 +26,13 @@ export default function CameraScreen() {
   const [webFacingMode, setWebFacingMode] = useState('environment'); // 'environment' = 후면, 'user' = 전면
   const [permission, requestPermission] = useCameraPermissions();
   const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [capturedPhotos, setCapturedPhotos] = useState([]); // 여러 장 지원
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0); // 현재 보고 있는 사진
   const [showPostForm, setShowPostForm] = useState(false);
   const [petName, setPetName] = useState('');
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
+  const MAX_PHOTOS = 5; // 최대 5장
   const [webStream, setWebStream] = useState(null);
   const [webCameraReady, setWebCameraReady] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('normal');
@@ -268,7 +270,8 @@ export default function CameraScreen() {
       // 최고 품질로 저장 (0.98)
       canvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob);
-        setCapturedPhoto({ uri: url });
+        setCapturedPhotos([{ uri: url }]); // 배열로 저장
+        setCurrentPhotoIndex(0);
         setShowPostForm(true);
 
         // 카메라 스트림 정지
@@ -358,7 +361,8 @@ export default function CameraScreen() {
             imageUri = await applyFilterToImage(imageUri, filterStyle);
           }
 
-          setCapturedPhoto({ uri: imageUri });
+          setCapturedPhotos([{ uri: imageUri }]); // 배열로 저장
+          setCurrentPhotoIndex(0);
           setShowPostForm(true);
 
           // 카메라 스트림 정지
@@ -401,49 +405,56 @@ export default function CameraScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsMultipleSelection: true, // 여러 장 선택 가능
+        selectionLimit: MAX_PHOTOS, // 최대 5장
         quality: 1,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        let imageUri = result.assets[0].uri;
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // 여러 장 처리
+        const processedPhotos = [];
 
-        // 웹에서 선택한 필터 적용
-        if (Platform.OS === 'web') {
-          // Base64로 변환 필요 시
-          if (!imageUri.startsWith('data:')) {
-            try {
-              const response = await fetch(imageUri);
-              const blob = await response.blob();
-              imageUri = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-              });
-            } catch (e) {
-              console.error('Image conversion failed:', e);
+        for (let asset of result.assets.slice(0, MAX_PHOTOS)) {
+          let imageUri = asset.uri;
+
+          // 웹에서 선택한 필터 적용
+          if (Platform.OS === 'web') {
+            // Base64로 변환 필요 시
+            if (!imageUri.startsWith('data:')) {
+              try {
+                const response = await fetch(imageUri);
+                const blob = await response.blob();
+                imageUri = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result);
+                  reader.readAsDataURL(blob);
+                });
+              } catch (e) {
+                console.error('Image conversion failed:', e);
+              }
+            }
+
+            // 필터 적용
+            let filterStyle = 'none';
+            if (selectedFilter === 'custom') {
+              filterStyle = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%)`;
+            } else {
+              const currentFilter = filters.find(f => f.id === selectedFilter);
+              if (currentFilter) {
+                filterStyle = currentFilter.filter;
+              }
+            }
+
+            if (filterStyle !== 'none') {
+              imageUri = await applyFilterToImage(imageUri, filterStyle);
             }
           }
 
-          // 필터 적용
-          let filterStyle = 'none';
-          if (selectedFilter === 'custom') {
-            // 커스텀 필터 적용
-            filterStyle = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%)`;
-          } else {
-            const currentFilter = filters.find(f => f.id === selectedFilter);
-            if (currentFilter) {
-              filterStyle = currentFilter.filter;
-            }
-          }
-
-          if (filterStyle !== 'none') {
-            imageUri = await applyFilterToImage(imageUri, filterStyle);
-          }
+          processedPhotos.push({ uri: imageUri });
         }
 
-        setCapturedPhoto({ uri: imageUri });
+        setCapturedPhotos(processedPhotos);
+        setCurrentPhotoIndex(0);
         setShowPostForm(true);
 
         // 웹 카메라 스트림 정지
@@ -475,7 +486,8 @@ export default function CameraScreen() {
           quality: 1,
           base64: false,
         });
-        setCapturedPhoto(photo);
+        setCapturedPhotos([photo]); // 배열로 저장
+        setCurrentPhotoIndex(0);
         setShowPostForm(true);
       } catch (error) {
         console.error('사진 촬영 오류:', error);
@@ -494,7 +506,7 @@ export default function CameraScreen() {
       return;
     }
 
-    if (!capturedPhoto) {
+    if (!capturedPhotos || capturedPhotos.length === 0) {
       if (Platform.OS === 'web') {
         alert('이미지를 선택해주세요.');
       } else {
@@ -505,42 +517,51 @@ export default function CameraScreen() {
 
     try {
       setUploading(true);
-      let imageUrl = capturedPhoto.uri;
 
-      // Blob URL을 Base64로 변환 (웹용)
-      if (imageUrl.startsWith('blob:')) {
-        try {
-          const response = await fetch(imageUrl);
-          const blob = await response.blob();
-          imageUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        } catch (error) {
-          console.error('Blob conversion failed:', error);
+      // 여러 이미지 처리
+      const processedImages = [];
+
+      for (let photo of capturedPhotos) {
+        let imageUrl = photo.uri;
+
+        // Blob URL을 Base64로 변환 (웹용)
+        if (imageUrl.startsWith('blob:')) {
+          try {
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            imageUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error('Blob conversion failed:', error);
+          }
         }
+
+        // 이미지 압축
+        if (imageUrl.startsWith('data:image')) {
+          try {
+            imageUrl = await compressImage(imageUrl, 800, 600, 0.8);
+          } catch (error) {
+            console.warn('Compression failed, using original:', error);
+          }
+        }
+
+        processedImages.push(imageUrl);
       }
 
-      // 이미지 압축
-      if (imageUrl.startsWith('data:image')) {
-        try {
-          imageUrl = await compressImage(imageUrl, 800, 600, 0.8);
-        } catch (error) {
-          console.warn('Compression failed, using original:', error);
-        }
-      }
-
-      // 게시물 생성
+      // 게시물 생성 (images 배열로 전달)
       await addPost({
         petName: petName.trim(),
         description: description.trim(),
-        imageUrl: imageUrl,
+        images: processedImages, // 배열로 전달
       });
 
       // 초기화
-      setCapturedPhoto(null);
+      setCapturedPhotos([]);
+      setCurrentPhotoIndex(0);
       setShowPostForm(false);
       setPetName('');
       setDescription('');
@@ -568,7 +589,8 @@ export default function CameraScreen() {
   };
 
   const discardPhoto = () => {
-    setCapturedPhoto(null);
+    setCapturedPhotos([]);
+    setCurrentPhotoIndex(0);
     setShowPostForm(false);
     setPetName('');
     setDescription('');
@@ -582,7 +604,7 @@ export default function CameraScreen() {
     }
   };
 
-  if (showPostForm && capturedPhoto) {
+  if (showPostForm && capturedPhotos.length > 0) {
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -598,8 +620,42 @@ export default function CameraScreen() {
             <View style={{ width: 28 }} />
           </View>
 
-          {/* 이미지 미리보기 */}
-          <Image source={{ uri: capturedPhoto.uri }} style={styles.formImage} />
+          {/* 이미지 슬라이드 미리보기 */}
+          <View style={styles.imageSliderContainer}>
+            <Image source={{ uri: capturedPhotos[currentPhotoIndex].uri }} style={styles.formImage} />
+
+            {/* 여러 장인 경우 네비게이션 표시 */}
+            {capturedPhotos.length > 1 && (
+              <>
+                {/* 이전 버튼 */}
+                {currentPhotoIndex > 0 && (
+                  <TouchableOpacity
+                    style={[styles.slideButton, styles.slidePrevButton]}
+                    onPress={() => setCurrentPhotoIndex(currentPhotoIndex - 1)}
+                  >
+                    <Ionicons name="chevron-back" size={32} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
+                {/* 다음 버튼 */}
+                {currentPhotoIndex < capturedPhotos.length - 1 && (
+                  <TouchableOpacity
+                    style={[styles.slideButton, styles.slideNextButton]}
+                    onPress={() => setCurrentPhotoIndex(currentPhotoIndex + 1)}
+                  >
+                    <Ionicons name="chevron-forward" size={32} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
+                {/* 인디케이터 */}
+                <View style={styles.slideIndicator}>
+                  <Text style={styles.slideIndicatorText}>
+                    {currentPhotoIndex + 1} / {capturedPhotos.length}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
 
           {/* 입력 폼 */}
           <View style={styles.formInputs}>
@@ -1295,10 +1351,48 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     letterSpacing: -0.5,
   },
+  imageSliderContainer: {
+    position: 'relative',
+    width: '100%',
+  },
   formImage: {
     width: '100%',
     aspectRatio: 4 / 3,
     backgroundColor: '#E5E5EA',
+  },
+  slideButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -25,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  slidePrevButton: {
+    left: 10,
+  },
+  slideNextButton: {
+    right: 10,
+  },
+  slideIndicator: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  slideIndicatorText: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    color: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    fontSize: 14,
+    fontWeight: '600',
   },
   formInputs: {
     padding: 20,

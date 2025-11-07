@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      allow read: if true; // 모든 사용자 프로필 읽기 가능
+      allow create: if true; // 회원가입 허용
+      allow update: if true; // 프로필 업데이트 허용
+      allow delete: if true; // 계정 삭제 허용
+    }
+    
+    // Posts collection
+    match /posts/{postId} {
+      allow read: if true; // 모든 게시물 읽기 가능
+      allow create: if true; // 게시물 생성 허용
+      allow update: if true; // 좋아요, 댓글 등 업데이트 허용
+      allow delete: if true; // 게시물 삭제 허용
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if true; // 모든 알림 읽기 가능
+      allow create: if true; // 알림 생성 허용
+      allow update: if true; // 알림 읽음 처리 허용
+      allow delete: if true; // 알림 삭제 허용
+    }
+    
+    // Reports collection (관리자용)
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // Inquiries collection (문의)
+    match /inquiries/{inquiryId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+  }
+}

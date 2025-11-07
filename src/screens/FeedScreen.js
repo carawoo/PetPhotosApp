@@ -19,6 +19,7 @@ import { usePost } from '../contexts/PostContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import FloatingActionButton from '../components/FloatingActionButton';
+import ImageSlider from '../components/ImageSlider';
 
 const { width } = Dimensions.get('window');
 
@@ -339,12 +340,8 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 이미지 */}
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.postImage}
-          resizeMode="cover"
-        />
+        {/* 이미지 슬라이더 */}
+        <ImageSlider images={item.images || [item.imageUrl]} />
 
         {/* 액션 버튼들 */}
         <View style={styles.actionsContainer}>
