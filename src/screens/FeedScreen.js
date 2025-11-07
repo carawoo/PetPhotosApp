@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -29,11 +29,43 @@ export default function FeedScreen({ route }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
 
+  // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
+  const randomizedPosts = useMemo(() => {
+    if (!posts || posts.length === 0) return [];
+
+    // 각 게시물에 랜덤 가중치 부여
+    const postsWithWeights = posts.map(post => {
+      const now = Date.now();
+      const postTime = post.createdAt?.toDate ? post.createdAt.toDate().getTime() : now;
+      const ageInDays = (now - postTime) / (1000 * 60 * 60 * 24);
+
+      // 시간 가중치: 최근 게시물은 1.0, 30일 이상 된 게시물은 0.5
+      // 하지만 완전히 랜덤이 아니라 약간의 우선순위만 부여
+      const timeWeight = Math.max(0.5, 1 - (ageInDays / 60));
+
+      // 참여도 가중치: 좋아요와 댓글 수
+      const engagementScore = (post.likes || 0) + (post.comments?.length || 0) * 2;
+      const engagementWeight = Math.min(1.5, 1 + engagementScore * 0.05);
+
+      // 최종 가중치는 시간 + 참여도 + 랜덤성
+      const combinedWeight = timeWeight * engagementWeight;
+      const randomFactor = Math.random() * 2; // 0~2 사이 랜덤
+
+      return {
+        ...post,
+        sortWeight: combinedWeight * randomFactor
+      };
+    });
+
+    // 가중치 기반 정렬 (높은 가중치가 우선)
+    return postsWithWeights.sort((a, b) => b.sortWeight - a.sortWeight);
+  }, [posts]);
+
   // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
   useEffect(() => {
     const postId = route?.params?.postId;
-    if (postId && posts.length > 0) {
-      const post = posts.find(p => p.id === postId);
+    if (postId && randomizedPosts.length > 0) {
+      const post = randomizedPosts.find(p => p.id === postId);
       if (post) {
         setSelectedPost(post);
       } else {
@@ -43,7 +75,7 @@ export default function FeedScreen({ route }) {
         }
       }
     }
-  }, [route?.params?.postId, posts]);
+  }, [route?.params?.postId, randomizedPosts]);
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
@@ -558,7 +590,7 @@ export default function FeedScreen({ route }) {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={posts}
+        data={randomizedPosts}
         renderItem={renderPost}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
