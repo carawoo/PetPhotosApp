@@ -212,11 +212,21 @@ export const AuthProvider = ({ children }) => {
       const { doc, updateDoc } = require('firebase/firestore');
       const { db } = require('../config/firebase.config');
 
+      // 1. 사용자 프로필 이미지 업데이트
       const userRef = doc(db, 'users', currentUser.id);
       await updateDoc(userRef, { profileImage: imageUrl });
       console.log('✅ Profile image updated in Firestore');
 
-      // 현재 사용자 상태 업데이트
+      // 2. 해당 사용자의 모든 게시물의 authorProfileImage 업데이트
+      try {
+        await firestoreService.updateUserPostsProfileImage(currentUser.id, imageUrl);
+        console.log('✅ All user posts updated with new profile image');
+      } catch (postsUpdateError) {
+        console.warn('⚠️ Failed to update posts profile image:', postsUpdateError);
+        // 게시물 업데이트 실패해도 프로필 이미지는 변경되었으므로 계속 진행
+      }
+
+      // 3. 현재 사용자 상태 업데이트
       setCurrentUser({ ...currentUser, profileImage: imageUrl });
 
       return { success: true };

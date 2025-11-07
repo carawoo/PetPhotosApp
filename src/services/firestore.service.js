@@ -200,6 +200,33 @@ export const deleteComment = async (postId, commentId) => {
   }
 };
 
+/**
+ * 사용자의 모든 게시물의 프로필 이미지 업데이트
+ */
+export const updateUserPostsProfileImage = async (userId, newProfileImage) => {
+  try {
+    const q = query(collection(db, 'posts'));
+    const snapshot = await getDocs(q);
+
+    // 해당 사용자의 게시물만 필터링
+    const userPosts = snapshot.docs.filter(doc => doc.data().authorId === userId);
+
+    // 모든 게시물의 authorProfileImage 업데이트
+    const updatePromises = userPosts.map(docSnapshot =>
+      updateDoc(docSnapshot.ref, {
+        authorProfileImage: newProfileImage,
+      })
+    );
+
+    await Promise.all(updatePromises);
+    console.log(`✅ Updated ${userPosts.length} posts with new profile image`);
+    return { success: true, updatedCount: userPosts.length };
+  } catch (error) {
+    console.error('Update user posts profile image error:', error);
+    throw error;
+  }
+};
+
 // ====== 사용자 관련 ======
 
 /**
