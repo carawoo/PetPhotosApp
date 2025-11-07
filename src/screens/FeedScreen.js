@@ -654,12 +654,59 @@ export default function FeedScreen() {
             )}
 
             <View style={styles.formContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="반려동물 이름 *"
-                value={editPetName}
-                onChangeText={setEditPetName}
-              />
+              {/* 반려동물 선택 (칩 형태) */}
+              <View style={styles.petSelectionContainer}>
+                <Text style={styles.petSelectionLabel}>반려동물 *</Text>
+                <View style={styles.petChipsContainer}>
+                  {currentUser?.pets && currentUser.pets.length > 0 ? (
+                    currentUser.pets.map((pet, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.editPetChipButton,
+                          editPetName === pet && styles.editPetChipButtonActive
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={styles.editPetChipButtonContent}
+                          onPress={() => setEditPetName(pet)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="paw"
+                            size={16}
+                            color={editPetName === pet ? '#fff' : '#FF3366'}
+                          />
+                          <Text style={[
+                            styles.editPetChipButtonText,
+                            editPetName === pet && styles.editPetChipButtonTextActive
+                          ]}>
+                            {pet}
+                          </Text>
+                        </TouchableOpacity>
+                        {editPetName === pet && (
+                          <TouchableOpacity
+                            style={styles.editPetChipRemoveButton}
+                            onPress={() => setEditPetName('')}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={20}
+                              color="#fff"
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noPetsText}>
+                      설정에서 반려동물을 등록해주세요
+                    </Text>
+                  )}
+                </View>
+              </View>
+
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
                 placeholder="설명을 입력하세요..."
@@ -1381,6 +1428,57 @@ const styles = StyleSheet.create({
   descriptionInput: {
     height: 120,
     textAlignVertical: 'top',
+  },
+  petSelectionContainer: {
+    marginBottom: 20,
+  },
+  petSelectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  petChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  editPetChipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingLeft: 16,
+    paddingRight: 16,
+    borderWidth: 2,
+    borderColor: '#FFE8F0',
+  },
+  editPetChipButtonActive: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  editPetChipButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editPetChipButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  editPetChipButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  editPetChipRemoveButton: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  noPetsText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontStyle: 'italic',
   },
   uploadButton: {
     backgroundColor: '#FF3366',
