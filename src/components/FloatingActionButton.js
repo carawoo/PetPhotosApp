@@ -14,23 +14,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { usePost } from '../contexts/PostContext';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function FloatingActionButton() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cameraModalVisible, setCameraModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [petInputText, setPetInputText] = useState('');
   const [localPets, setLocalPets] = useState([]);
   const [selectedPet, setSelectedPet] = useState('');
   const [description, setDescription] = useState('');
-  const [facing, setFacing] = useState('back');
   const [uploading, setUploading] = useState(false);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const cameraRef = React.useRef(null);
   const { addPost } = usePost();
   const { currentUser } = useAuth();
 
@@ -66,25 +61,12 @@ export default function FloatingActionButton() {
   const openCamera = async () => {
     setMenuOpen(false);
 
-    if (!cameraPermission?.granted) {
-      const { status } = await requestCameraPermission();
-      if (status !== 'granted') {
-        Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
-        return;
-      }
-    }
-
-    setCameraModalVisible(true);
-  };
-
-  const openGallery = async () => {
-    setMenuOpen(false);
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
+    // 디바이스 네이티브 카메라 사용 (고해상도)
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 1, // 최고 화질
+      exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -93,20 +75,22 @@ export default function FloatingActionButton() {
     }
   };
 
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 1,
-        });
-        setCameraModalVisible(false);
-        setSelectedImage(photo.uri);
-        setUploadModalVisible(true);
-      } catch (error) {
-        Alert.alert('오류', '사진을 촬영할 수 없습니다.');
-      }
+  const openGallery = async () => {
+    setMenuOpen(false);
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 1, // 최고 화질
+      exif: false,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImage(result.assets[0].uri);
+      setUploadModalVisible(true);
     }
   };
+
 
   const convertBlobToBase64 = async (blobUrl) => {
     try {
@@ -243,39 +227,6 @@ export default function FloatingActionButton() {
           </TouchableOpacity>
         </>
       )}
-
-      {/* 카메라 모달 */}
-      <Modal
-        visible={cameraModalVisible}
-        animationType="slide"
-        onRequestClose={() => setCameraModalVisible(false)}
-      >
-        <View style={styles.cameraContainer}>
-          <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-            <View style={styles.cameraHeader}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setCameraModalVisible(false)}
-              >
-                <Ionicons name="close" size={32} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.cameraControls}>
-              <View style={styles.spacer} />
-              <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.flipButton}
-                onPress={() => setFacing(current => current === 'back' ? 'front' : 'back')}
-              >
-                <Ionicons name="camera-reverse" size={32} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </CameraView>
-        </View>
-      </Modal>
 
       {/* 업로드 모달 */}
       <Modal
@@ -481,60 +432,6 @@ const styles = StyleSheet.create({
   },
   galleryFab: {
     bottom: 170,
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraHeader: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cameraControls: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  spacer: {
-    width: 50,
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonInner: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#fff',
-  },
-  flipButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   uploadModalOverlay: {
     flex: 1,

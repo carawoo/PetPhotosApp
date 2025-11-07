@@ -22,10 +22,6 @@ import { usePost } from '../contexts/PostContext';
 import { compressImage } from '../utils/imageCompression';
 
 export default function CameraScreen() {
-  const [facing, setFacing] = useState('back');
-  const [webFacingMode, setWebFacingMode] = useState('environment'); // 'environment' = 후면, 'user' = 전면
-  const [permission, requestPermission] = useCameraPermissions();
-  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
   const [capturedPhotos, setCapturedPhotos] = useState([]); // 여러 장 지원
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0); // 현재 보고 있는 사진
   const [showPostForm, setShowPostForm] = useState(false);
@@ -33,19 +29,8 @@ export default function CameraScreen() {
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const MAX_PHOTOS = 5; // 최대 5장
-  const [webStream, setWebStream] = useState(null);
-  const [webCameraReady, setWebCameraReady] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('normal');
-  const [showCustomFilterEditor, setShowCustomFilterEditor] = useState(false);
   const [customFilters, setCustomFilters] = useState([]);
-  const [brightness, setBrightness] = useState(100);
-  const [saturation, setSaturation] = useState(100);
-  const [contrast, setContrast] = useState(100);
-  const [filterName, setFilterName] = useState('');
-  const [showFilterNameInput, setShowFilterNameInput] = useState(false);
-  const [activeSlider, setActiveSlider] = useState('brightness'); // 'brightness', 'saturation', 'contrast'
-  const cameraRef = useRef(null);
-  const videoRef = useRef(null);
   const { currentUser } = useAuth();
   const { addPost } = usePost();
 
@@ -471,23 +456,25 @@ export default function CameraScreen() {
   };
 
   const takePicture = async () => {
-    if (Platform.OS === 'web') {
-      // 웹에서는 이미지 피커 사용
-      pickImage();
-      return;
-    }
+    // 디바이스 네이티브 카메라 사용 (고해상도)
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 1, // 최고 화질
+        exif: false,
+      });
 
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 1,
-          base64: false,
-        });
-        setCapturedPhotos([photo]); // 배열로 저장
+      if (!result.canceled && result.assets[0]) {
+        setCapturedPhotos([result.assets[0]]); // 배열로 저장
         setCurrentPhotoIndex(0);
         setShowPostForm(true);
-      } catch (error) {
-        console.error('사진 촬영 오류:', error);
+      }
+    } catch (error) {
+      console.error('사진 촬영 오류:', error);
+      if (Platform.OS === 'web') {
+        alert('사진을 촬영할 수 없습니다.');
+      } else {
         Alert.alert('오류', '사진을 촬영할 수 없습니다.');
       }
     }
