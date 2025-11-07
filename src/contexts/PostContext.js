@@ -233,7 +233,7 @@ export const PostProvider = ({ children }) => {
         sendNotificationToUser(post.authorId, {
           type: 'like',
           postId: postId,
-          postImage: post.imageUrl,
+          postImage: post.images?.[0] || post.imageUrl, // images 배열 우선, 하위 호환성 유지
           fromUser: currentUser.nickname,
           fromUserId: userId,
           message: `${currentUser.nickname}님이 회원님의 게시물을 좋아합니다`,
@@ -282,14 +282,14 @@ export const PostProvider = ({ children }) => {
       };
 
       // 댓글 추가 시 게시물 작성자에게 알림 (본인 게시물 제외)
-      if (post && post.authorId !== userId) {
+      if (post && post.authorId !== userId && currentUser) {
         sendNotificationToUser(post.authorId, {
           type: 'comment',
           postId: postId,
-          postImage: post.imageUrl,
-          fromUser: currentUser?.nickname || 'Someone',
+          postImage: post.images?.[0] || post.imageUrl, // images 배열 우선, 하위 호환성 유지
+          fromUser: currentUser.nickname,
           fromUserId: userId,
-          message: `${currentUser?.nickname || 'Someone'}님이 댓글을 남겼습니다: "${comment.length > 30 ? comment.substring(0, 30) + '...' : comment}"`,
+          message: `${currentUser.nickname}님이 댓글을 남겼습니다: "${comment.length > 30 ? comment.substring(0, 30) + '...' : comment}"`,
           targetUserId: post.authorId,
         });
       }
