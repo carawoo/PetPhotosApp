@@ -350,7 +350,6 @@ export default function ProfileScreen({ route, navigation }) {
             await navigator.share({
               title: shareContent.title,
               text: shareContent.message,
-              url: shareContent.url,
             });
             return;
           } catch (error) {

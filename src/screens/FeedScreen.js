@@ -114,7 +114,6 @@ export default function FeedScreen({ route }) {
             await navigator.share({
               title: shareTitle,
               text: `${shareText}\n\n${shareUrl}`,
-              url: shareUrl,
             });
             return; // 성공하면 종료
           } catch (error) {
