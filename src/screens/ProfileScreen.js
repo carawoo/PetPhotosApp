@@ -209,7 +209,8 @@ export default function ProfileScreen({ route, navigation }) {
     if (Platform.OS === 'web') {
       if (window.confirm('정말 로그아웃하시겠습니까?')) {
         logout();
-        navigation.navigate('Feed');
+        // 웹에서는 직접 URL 변경으로 Feed로 이동
+        window.location.href = '/';
       }
     } else {
       Alert.alert(

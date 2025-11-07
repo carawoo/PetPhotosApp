@@ -52,11 +52,8 @@ export default function SettingsScreen({ navigation }) {
     if (Platform.OS === 'web') {
       if (window.confirm('로그아웃 하시겠습니까?')) {
         logout();
-        navigation.goBack();
-        // Modal이 닫힌 후 Feed로 이동
-        setTimeout(() => {
-          navigation.navigate && navigation.navigate('Feed');
-        }, 100);
+        // 웹에서는 직접 URL 변경으로 Feed로 이동
+        window.location.href = '/';
       }
     } else {
       Alert.alert(
@@ -167,11 +164,15 @@ export default function SettingsScreen({ navigation }) {
       }
 
       logout();
-      navigation.goBack();
-      // Modal이 닫힌 후 Feed로 이동
-      setTimeout(() => {
-        navigation.navigate && navigation.navigate('Feed');
-      }, 100);
+      // 웹에서는 직접 URL 변경으로 Feed로 이동
+      if (Platform.OS === 'web') {
+        window.location.href = '/';
+      } else {
+        navigation.goBack();
+        setTimeout(() => {
+          navigation.navigate && navigation.navigate('Feed');
+        }, 100);
+      }
     } catch (error) {
       console.error('Delete account error:', error);
       if (Platform.OS === 'web') {
