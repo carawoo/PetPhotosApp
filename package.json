@@ -8,8 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "web:build": "npx expo export --platform web && node inject-meta-tags.js && node fix-gh-pages-paths.js && touch dist/.nojekyll && cp public/sitemap.xml public/robots.txt public/favicon*.png public/icon.png dist/",
-    "deploy": "gh-pages -d dist"
+    "web:build": "npx expo export --platform web && node inject-meta-tags.js && node fix-gh-pages-paths.js && node rename-assets.js && touch dist/.nojekyll && cp public/sitemap.xml public/robots.txt public/favicon*.png public/icon.png dist/",
+    "deploy": "gh-pages -d dist --dotfiles"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.8.1",
