@@ -65,7 +65,7 @@ export default function FeedScreen() {
     if (!currentUser) {
       if (Platform.OS === 'web') {
         if (window.confirm('댓글을 작성하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
-          window.location.href = '/';
+          navigation.navigate('Login');
         }
       } else {
         Alert.alert(
@@ -73,7 +73,7 @@ export default function FeedScreen() {
           '댓글을 작성하려면 로그인이 필요합니다.',
           [
             { text: '취소', style: 'cancel' },
-            { text: '로그인', onPress: () => {} }
+            { text: '로그인', onPress: () => navigation.navigate('Login') }
           ]
         );
       }
