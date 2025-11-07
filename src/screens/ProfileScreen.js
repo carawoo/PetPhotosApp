@@ -40,7 +40,8 @@ try {
 }
 
 const { width } = Dimensions.get('window');
-const imageSize = width / 3 - 1;
+// 한 줄에 정확히 3개씩 배치 (margin과 padding 고려)
+const imageSize = (width - 8) / 3; // padding(2) + margin(6) = 8
 
 export default function ProfileScreen({ route, navigation }) {
   const { currentUser, logout, updateProfileImage, updateProfileBio } = useAuth();
