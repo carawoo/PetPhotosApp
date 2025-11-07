@@ -326,6 +326,75 @@ export default function ProfileScreen({ route, navigation }) {
     }
   };
 
+  const handlePostShare = async (post) => {
+    try {
+      // 피드별 고유 링크 생성
+      const baseUrl = Platform.OS === 'web'
+        ? window.location.origin
+        : 'https://peto.real-e.space';
+      const shareUrl = `${baseUrl}/post/${post.id}`;
+      const shareTitle = `${post.author}님의 ${post.petName || '반려동물'} 사진`;
+      const shareText = post.description || '귀여운 반려동물 사진을 확인해보세요!';
+
+      const shareContent = {
+        title: shareTitle,
+        text: shareText,
+        message: `${shareTitle}\n${shareText}\n\n${shareUrl}`,
+        url: shareUrl,
+      };
+
+      if (Platform.OS === 'web') {
+        // 웹 환경: Web Share API 우선 사용
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: shareContent.title,
+              text: shareContent.text,
+              url: shareContent.url,
+            });
+            return;
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              return;
+            }
+          }
+        }
+
+        // 폴백: 클립보드 복사
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareContent.message);
+            alert('✅ 게시물 링크가 클립보드에 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
+          }
+        } catch (clipboardError) {
+          // 최후의 폴백: textarea 방식
+          const textArea = document.createElement('textarea');
+          textArea.value = shareContent.message;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          alert('게시물 링크가 클립보드에 복사되었습니다!');
+        }
+      } else {
+        // 모바일: React Native Share API
+        await Share.share({
+          title: shareContent.title,
+          message: shareContent.message,
+        });
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      if (Platform.OS === 'web') {
+        alert('공유에 실패했습니다.');
+      } else {
+        Alert.alert('오류', '공유에 실패했습니다.');
+      }
+    }
+  };
+
   const handlePostClick = (post) => {
     setSelectedPost(post);
     setCommentText('');
@@ -656,6 +725,12 @@ export default function ProfileScreen({ route, navigation }) {
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionButton}>
                       <Ionicons name="chatbubble-outline" size={26} color="#333" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handlePostShare(selectedPost)}
+                    >
+                      <Ionicons name="share-outline" size={26} color="#333" />
                     </TouchableOpacity>
                   </View>
                 </View>

@@ -83,7 +83,11 @@ export default function FeedScreen() {
 
   const handleShare = async (post) => {
     try {
-      const shareUrl = window.location.href;
+      // 피드별 고유 링크 생성
+      const baseUrl = Platform.OS === 'web'
+        ? window.location.origin
+        : 'https://peto.real-e.space';
+      const shareUrl = `${baseUrl}/post/${post.id}`;
       const shareTitle = `${post.author}님의 ${post.petName || '반려동물'} 사진`;
       const shareText = post.description || '귀여운 반려동물 사진을 확인해보세요!';
 
