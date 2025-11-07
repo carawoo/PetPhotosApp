@@ -281,56 +281,42 @@ export default function FloatingActionButton() {
               {/* 반려동물 선택 (칩 형태) */}
               <View style={styles.petSelectionContainer}>
                 <Text style={styles.petSelectionLabel}>반려동물 *</Text>
-                <View style={styles.petChipsContainer}>
-                  {currentUser?.pets && currentUser.pets.length > 0 ? (
-                    currentUser.pets.map((pet, index) => (
-                      <View
-                        key={index}
-                        style={[
-                          styles.petChipButton,
-                          petName === pet && styles.petChipButtonActive
-                        ]}
-                      >
-                        <TouchableOpacity
-                          style={styles.petChipButtonContent}
-                          onPress={() => setPetName(pet)}
-                          activeOpacity={0.7}
-                          disabled={uploading}
-                        >
-                          <Ionicons
-                            name="paw"
-                            size={16}
-                            color={petName === pet ? '#fff' : '#FF3366'}
-                          />
-                          <Text style={[
-                            styles.petChipButtonText,
-                            petName === pet && styles.petChipButtonTextActive
-                          ]}>
-                            {pet}
-                          </Text>
-                        </TouchableOpacity>
-                        {petName === pet && (
-                          <TouchableOpacity
-                            style={styles.petChipRemoveButton}
-                            onPress={() => setPetName('')}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            disabled={uploading}
-                          >
-                            <Ionicons
-                              name="close-circle"
-                              size={20}
-                              color="#fff"
-                            />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noPetsText}>
-                      설정에서 반려동물을 등록해주세요
-                    </Text>
-                  )}
+
+                {/* 새 반려동물 추가 입력 */}
+                <View style={styles.addPetInputContainer}>
+                  <TextInput
+                    style={styles.addPetInput}
+                    placeholder="새 반려동물 이름 입력"
+                    value={petName}
+                    onChangeText={setPetName}
+                    editable={!uploading}
+                    maxLength={20}
+                  />
                 </View>
+
+                {/* 기존 반려동물 칩 */}
+                {currentUser?.pets && currentUser.pets.length > 0 && (
+                  <View style={styles.petChipsContainer}>
+                    {currentUser.pets.map((pet, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.petChipButton}
+                        onPress={() => setPetName(pet)}
+                        activeOpacity={0.7}
+                        disabled={uploading}
+                      >
+                        <Ionicons
+                          name="paw"
+                          size={16}
+                          color="#FF3366"
+                        />
+                        <Text style={styles.petChipButtonText}>
+                          {pet}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <TextInput
@@ -522,6 +508,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
     marginBottom: 12,
+  },
+  addPetInputContainer: {
+    marginBottom: 12,
+  },
+  addPetInput: {
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
   },
   petChipsContainer: {
     flexDirection: 'row',
