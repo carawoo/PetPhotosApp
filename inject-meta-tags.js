@@ -1,16 +1,19 @@
-<!DOCTYPE html>
-<html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#FF6B6B" />
+const fs = require('fs');
+const path = require('path');
 
+const indexPath = path.join(__dirname, 'dist', 'index.html');
+
+console.log('📝 Injecting meta tags into index.html...\n');
+
+// Read the generated index.html
+let html = fs.readFileSync(indexPath, 'utf8');
+
+// Meta tags to inject
+const metaTags = `
     <!-- Naver Search Advisor Verification -->
     <meta name="naver-site-verification" content="2d3393624026903cde4ecb4d313dd32687dfff6f" />
 
     <!-- SEO Meta Tags -->
-    <title>Peto - 반려동물 사진첩</title>
-    <meta name="description" content="반려동물 사진을 공유하는 소셜 네트워크 앱" />
     <meta name="keywords" content="반려동물, 펫, 사진, 공유, 소셜네트워크, pet, photos, 강아지, 고양이, peto" />
     <meta name="author" content="Peto" />
 
@@ -32,12 +35,6 @@
     <meta name="twitter:description" content="반려동물 사진을 공유하는 소셜 네트워크 앱" />
     <meta name="twitter:image" content="https://peto.real-e.space/favicon-512x512.png" />
 
-    <!-- PWA Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Peto" />
-
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -45,10 +42,26 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
     <link rel="shortcut icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon-192x192.png" />
-    <link rel="manifest" href="/manifest.json" />
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-  </body>
-</html>
+`;
+
+// Update title
+html = html.replace(/<title>.*?<\/title>/, '<title>Peto - 반려동물 사진첩</title>');
+
+// Update description if exists
+if (html.includes('name="description"')) {
+  html = html.replace(
+    /<meta name="description" content=".*?".*?>/,
+    '<meta name="description" content="반려동물 사진을 공유하는 소셜 네트워크 앱" />'
+  );
+}
+
+// Inject meta tags before </head>
+html = html.replace('</head>', `${metaTags}\n  </head>`);
+
+// Write back
+fs.writeFileSync(indexPath, html, 'utf8');
+
+console.log('✅ Meta tags injected successfully!');
+console.log('✅ Title updated to: Peto - 반려동물 사진첩');
+console.log('✅ Favicons linked');
+console.log('✅ Open Graph tags added\n');
