@@ -59,6 +59,25 @@ export default function FeedScreen() {
   };
 
   const handleComment = (post) => {
+    // 비회원은 로그인 필요
+    if (!currentUser) {
+      if (Platform.OS === 'web') {
+        if (window.confirm('댓글을 작성하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
+          window.location.href = '/';
+        }
+      } else {
+        Alert.alert(
+          '로그인 필요',
+          '댓글을 작성하려면 로그인이 필요합니다.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인', onPress: () => {} }
+          ]
+        );
+      }
+      return;
+    }
+
     setSelectedPost(post);
     setEditingComment(null);
     setCommentText('');
@@ -250,6 +269,25 @@ export default function FeedScreen() {
   };
 
   const submitComment = () => {
+    // 비회원은 로그인 필요
+    if (!currentUser) {
+      if (Platform.OS === 'web') {
+        if (window.confirm('댓글을 작성하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
+          window.location.href = '/';
+        }
+      } else {
+        Alert.alert(
+          '로그인 필요',
+          '댓글을 작성하려면 로그인이 필요합니다.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인', onPress: () => {} }
+          ]
+        );
+      }
+      return;
+    }
+
     if (commentText.trim() && selectedPost) {
       if (editingComment) {
         // 댓글 수정
