@@ -108,30 +108,6 @@ export default function ProfileScreen({ route, navigation }) {
             }
           }
 
-          // 2. Firestore에서 못 찾았으면 localStorage 확인
-          if (!user) {
-            // 2-1. 현재 환경 키 확인
-            const currentEnvUsers = JSON.parse(localStorage.getItem(getStorageKey('users')) || '[]');
-            user = currentEnvUsers.find(u => u.id === profileUserId);
-
-            // 2-2. 못 찾았으면 다른 환경 키들도 확인
-            if (!user) {
-              const allPossibleKeys = ['petPhotos_users', 'petPhotos_dev_users'];
-              for (const key of allPossibleKeys) {
-                try {
-                  const users = JSON.parse(localStorage.getItem(key) || '[]');
-                  user = users.find(u => u.id === profileUserId);
-                  if (user) {
-                    console.log(`✅ Found user in localStorage: ${key}`);
-                    break;
-                  }
-                } catch (e) {
-                  console.warn(`Failed to check ${key}:`, e);
-                }
-              }
-            }
-          }
-
           console.log('🔍 Final result - Looking for user:', profileUserId, 'Found:', user);
           setProfileUser(user || null);
         }

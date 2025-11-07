@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [contactInfo, setContactInfo] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [autoLogin, setAutoLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -58,6 +59,11 @@ export default function LoginScreen() {
         return;
       }
 
+      if (!contactInfo.trim()) {
+        setErrorMessage('연락처를 입력해주세요.\n비밀번호 재설정 시 사용됩니다.');
+        return;
+      }
+
       // 닉네임 중복 체크
       const available = await isNicknameAvailable(nickname.trim());
       if (!available) {
@@ -65,7 +71,7 @@ export default function LoginScreen() {
         return;
       }
 
-      const result = await signup(nickname.trim(), password, autoLogin);
+      const result = await signup(nickname.trim(), password, autoLogin, contactInfo.trim());
       if (!result.success) {
         setErrorMessage(result.error);
       }
@@ -83,6 +89,7 @@ export default function LoginScreen() {
     setNickname('');
     setPassword('');
     setConfirmPassword('');
+    setContactInfo('');
     setErrorMessage('');
   };
 
@@ -96,35 +103,8 @@ export default function LoginScreen() {
       return;
     }
 
-    try {
-      // Firestore에서 사용자 찾기
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../config/firebase.config');
-
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('nickname', '==', forgotNickname.trim()));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-        setFoundPassword(userData.password || '비밀번호 없음');
-      } else {
-        if (Platform.OS === 'web') {
-          alert('해당 닉네임을 찾을 수 없습니다.');
-        } else {
-          Alert.alert('알림', '해당 닉네임을 찾을 수 없습니다.');
-        }
-        setFoundPassword('');
-      }
-    } catch (error) {
-      console.error('Failed to find password:', error);
-      if (Platform.OS === 'web') {
-        alert('비밀번호 찾기에 실패했습니다.');
-      } else {
-        Alert.alert('오류', '비밀번호 찾기에 실패했습니다.');
-      }
-      setFoundPassword('');
-    }
+    // 보안상 이유로 자동 비밀번호 찾기 제거 - 관리자 연락 필요
+    setFoundPassword('confirmed');
   };
 
   const closeForgotPassword = () => {
@@ -198,6 +178,21 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {isSignup && (
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="연락처 (이메일 또는 전화번호)"
+                value={contactInfo}
+                onChangeText={setContactInfo}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+              />
+            </View>
+          )}
+
           {errorMessage ? (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={18} color="#FF3366" />
@@ -207,8 +202,9 @@ export default function LoginScreen() {
 
           {isSignup && (
             <Text style={styles.helperText}>
-              * 닉네임과 비밀번호만으로 시작할 수 있어요!{'\n'}
-              * 개인정보는 수집하지 않습니다.
+              * 연락처는 비밀번호 재설정 시에만 사용됩니다.{'\n'}
+              * 이메일 또는 전화번호를 입력해주세요.{'\n'}
+              * 관리자가 직접 확인하여 안내드립니다.
             </Text>
           )}
 
@@ -264,15 +260,21 @@ export default function LoginScreen() {
             </View>
 
             <Text style={styles.modalDescription}>
-              가입 시 사용한 닉네임을 입력하시면{'\n'}
-              비밀번호를 확인할 수 있습니다.
+              보안상 자동 비밀번호 찾기는 제공하지 않습니다.{'\n'}
+              아래 관리자 이메일로 연락 주시면{'\n'}
+              회원가입 시 등록한 연락처로 재설정을 도와드립니다.
             </Text>
+
+            <View style={styles.adminEmailContainer}>
+              <Ionicons name="mail-outline" size={20} color="#FF3366" />
+              <Text style={styles.adminEmail}>carawoo96@gmail.com</Text>
+            </View>
 
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="닉네임 입력"
+                placeholder="관리자에게 전달할 닉네임 입력"
                 value={forgotNickname}
                 onChangeText={setForgotNickname}
                 autoCapitalize="none"
@@ -284,7 +286,10 @@ export default function LoginScreen() {
               <View style={styles.passwordFoundContainer}>
                 <Ionicons name="checkmark-circle" size={24} color="#34C759" />
                 <Text style={styles.passwordFoundText}>
-                  비밀번호: <Text style={styles.passwordValue}>{foundPassword}</Text>
+                  위 이메일로 다음 정보를 보내주세요:{'\n'}
+                  • 닉네임: <Text style={styles.passwordValue}>{forgotNickname}</Text>{'\n'}
+                  • 가입 시 등록한 연락처{'\n'}
+                  관리자가 확인 후 재설정을 도와드립니다.
                 </Text>
               </View>
             ) : null}
@@ -293,7 +298,7 @@ export default function LoginScreen() {
               style={styles.modalButton}
               onPress={handleForgotPassword}
             >
-              <Text style={styles.modalButtonText}>비밀번호 찾기</Text>
+              <Text style={styles.modalButtonText}>안내 확인</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -483,6 +488,23 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginBottom: 24,
     lineHeight: 22,
+  },
+  adminEmailContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F7',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFE0E7',
+    gap: 10,
+  },
+  adminEmail: {
+    fontSize: 16,
+    color: '#FF3366',
+    fontWeight: '600',
   },
   passwordFoundContainer: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import * as firestoreService from '../services/firestore.service';
 
 const NotificationContext = createContext();
 
@@ -16,105 +17,86 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentUser } = useAuth();
 
-  // 알림 로드
+  // 알림 로드 (Firestore 실시간 구독)
   useEffect(() => {
-    if (currentUser) {
-      loadNotifications();
-
-      // localStorage 변경 감지 (다른 탭이나 다른 사용자의 동작으로 알림 추가됨)
-      const handleStorageChange = (e) => {
-        if (e.key === `notifications_${currentUser.id}`) {
-          loadNotifications();
-        }
-      };
-
-      window.addEventListener('storage', handleStorageChange);
-
-      // 주기적으로 알림 체크 (같은 탭에서의 변경사항 감지)
-      const interval = setInterval(() => {
-        loadNotifications();
-      }, 3000); // 3초마다 체크
-
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        clearInterval(interval);
-      };
+    if (!currentUser) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
     }
-  }, [currentUser]);
 
-  const loadNotifications = () => {
-    try {
-      const saved = localStorage.getItem(`notifications_${currentUser?.id}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setNotifications(parsed);
-        const unread = parsed.filter(n => !n.read).length;
+    // Firestore 실시간 구독
+    const unsubscribe = firestoreService.subscribeToUserNotifications(
+      currentUser.id,
+      (fetchedNotifications) => {
+        setNotifications(fetchedNotifications);
+        const unread = fetchedNotifications.filter(n => !n.read).length;
         setUnreadCount(unread);
       }
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
-    }
-  };
+    );
 
-  const saveNotifications = (notifs) => {
-    try {
-      localStorage.setItem(`notifications_${currentUser?.id}`, JSON.stringify(notifs));
-      const unread = notifs.filter(n => !n.read).length;
-      setUnreadCount(unread);
-    } catch (error) {
-      console.error('Failed to save notifications:', error);
-    }
-  };
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser]);
 
   // 알림 추가
-  const addNotification = (notification) => {
+  const addNotification = async (notification) => {
     if (!currentUser) return;
 
     // targetUserId가 현재 사용자가 아니면 알림을 추가하지 않음
-    // (다른 사용자의 알림이므로 현재 사용자에게 보여지면 안됨)
     if (notification.targetUserId && notification.targetUserId !== currentUser.id) {
       return;
     }
 
-    const newNotification = {
-      id: Date.now().toString(),
-      ...notification,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updated = [newNotification, ...notifications];
-    setNotifications(updated);
-    saveNotifications(updated);
+    try {
+      await firestoreService.createNotification({
+        ...notification,
+        targetUserId: notification.targetUserId || currentUser.id,
+      });
+    } catch (error) {
+      console.error('Failed to add notification:', error);
+    }
   };
 
   // 알림 읽음 처리
-  const markAsRead = (notificationId) => {
-    const updated = notifications.map(n =>
-      n.id === notificationId ? { ...n, read: true } : n
-    );
-    setNotifications(updated);
-    saveNotifications(updated);
+  const markAsRead = async (notificationId) => {
+    try {
+      await firestoreService.markNotificationAsRead(notificationId);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
   // 모든 알림 읽음 처리
-  const markAllAsRead = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    setNotifications(updated);
-    saveNotifications(updated);
+  const markAllAsRead = async () => {
+    if (!currentUser) return;
+
+    try {
+      await firestoreService.markAllNotificationsAsRead(currentUser.id);
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+    }
   };
 
   // 알림 삭제
-  const deleteNotification = (notificationId) => {
-    const updated = notifications.filter(n => n.id !== notificationId);
-    setNotifications(updated);
-    saveNotifications(updated);
+  const deleteNotification = async (notificationId) => {
+    try {
+      await firestoreService.deleteNotification(notificationId);
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
   };
 
   // 모든 알림 삭제
-  const clearAllNotifications = () => {
-    setNotifications([]);
-    saveNotifications([]);
+  const clearAllNotifications = async () => {
+    if (!currentUser) return;
+
+    try {
+      await firestoreService.clearAllUserNotifications(currentUser.id);
+    } catch (error) {
+      console.error('Failed to clear all notifications:', error);
+    }
   };
 
   return (

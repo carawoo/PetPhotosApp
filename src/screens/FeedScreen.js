@@ -70,9 +70,26 @@ export default function FeedScreen() {
       const shareText = post.description || '귀여운 반려동물 사진을 확인해보세요!';
 
       if (Platform.OS === 'web') {
-        // 웹 환경에서는 클립보드 복사를 우선으로
+        // 웹 환경: Web Share API 우선 사용 (시스템 공유 기능)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: shareTitle,
+              text: shareText,
+              url: shareUrl,
+            });
+            return; // 성공하면 종료
+          } catch (error) {
+            // 사용자가 공유를 취소한 경우 (AbortError)
+            if (error.name === 'AbortError') {
+              return;
+            }
+            console.warn('Web Share API failed, falling back to clipboard:', error);
+          }
+        }
+
+        // 폴백: 클립보드 복사
         try {
-          // 클립보드 API 사용
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(shareUrl);
             alert('✅ 링크가 클립보드에 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
@@ -90,7 +107,6 @@ export default function FeedScreen() {
               document.execCommand('copy');
               alert('✅ 링크가 복사되었습니다!\n\n공유하고 싶은 곳에 붙여넣기 해주세요.');
             } catch (err) {
-              // 마지막 폴백: prompt로 링크 표시
               prompt('아래 링크를 복사하세요:', shareUrl);
             }
 
@@ -98,11 +114,10 @@ export default function FeedScreen() {
           }
         } catch (error) {
           console.error('Clipboard error:', error);
-          // 에러 발생 시 prompt로 폴백
           prompt('아래 링크를 복사하세요:', shareUrl);
         }
       } else {
-        // 모바일 환경
+        // 모바일 환경: React Native Share API
         const Share = require('react-native').Share;
         await Share.share({
           title: shareTitle,
@@ -167,17 +182,9 @@ export default function FeedScreen() {
         status: 'pending',
       };
 
-      // Firebase 사용 시
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
-        await firestoreService.createReport(reportData);
-      } else {
-        // localStorage 사용 시
-        const reports = JSON.parse(localStorage.getItem('petPhotos_reports') || '[]');
-        reports.push({ ...reportData, id: Date.now().toString() });
-        localStorage.setItem('petPhotos_reports', JSON.stringify(reports));
-      }
+      // Firestore에 저장
+      const firestoreService = require('../services/firestore.service');
+      await firestoreService.createReport(reportData);
 
       setShowReportModal(false);
       if (Platform.OS === 'web') {
@@ -290,16 +297,13 @@ export default function FeedScreen() {
 
   // 사용자 프로필 이미지 가져오기
   const getUserProfileImage = (nickname) => {
-    try {
-      const users = localStorage.getItem('petPhotos_users');
-      if (users) {
-        const userList = JSON.parse(users);
-        const user = userList.find(u => u.nickname === nickname);
-        return user?.profileImage || null;
-      }
-    } catch (error) {
-      console.error('Failed to get user profile image:', error);
+    // 현재 로그인한 사용자인 경우 currentUser의 프로필 이미지 반환
+    if (currentUser && currentUser.nickname === nickname) {
+      return currentUser.profileImage || null;
     }
+
+    // 다른 사용자의 경우 게시물의 authorProfileImage 사용
+    // (PostContext에서 게시물 로드 시 작성자 정보를 포함하도록 수정 필요)
     return null;
   };
 

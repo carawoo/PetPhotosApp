@@ -55,6 +55,7 @@ export const AuthProvider = ({ children }) => {
               createdAt: userData.createdAt,
               profileImage: userData.profileImage,
               bio: userData.bio,
+              contactInfo: userData.contactInfo,
             };
             setCurrentUser(user);
             console.log('✅ Auto-login from Firestore');
@@ -97,7 +98,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 회원가입 (Firestore 전용)
-  const signup = async (nickname, password, autoLogin = true) => {
+  const signup = async (nickname, password, autoLogin = true, contactInfo = '') => {
     if (!useFirebase || !firestoreService) {
       return { success: false, error: 'Firestore가 필요합니다.' };
     }
@@ -113,6 +114,7 @@ export const AuthProvider = ({ children }) => {
       const newUser = {
         nickname,
         password, // 실제 앱에서는 해시해야 하지만, 데모용이므로 그대로 저장
+        contactInfo, // 비밀번호 재설정용 연락처
         createdAt: new Date().toISOString(),
       };
 
@@ -125,6 +127,7 @@ export const AuthProvider = ({ children }) => {
         id: userId,
         nickname: newUser.nickname,
         createdAt: newUser.createdAt,
+        contactInfo: newUser.contactInfo,
       };
       setCurrentUser(userWithoutPassword);
 
@@ -175,6 +178,7 @@ export const AuthProvider = ({ children }) => {
         createdAt: firestoreUserData.createdAt,
         profileImage: firestoreUserData.profileImage,
         bio: firestoreUserData.bio,
+        contactInfo: firestoreUserData.contactInfo,
       };
 
       setCurrentUser(user);

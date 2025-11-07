@@ -17,13 +17,15 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function AdminDashboardScreen({ navigation, isWebPortal = false, adminLogout = null }) {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('reports'); // 'reports' or 'inquiries'
+  const [activeTab, setActiveTab] = useState('reports'); // 'reports', 'inquiries', or 'password-reset'
   const [reports, setReports] = useState([]);
   const [inquiries, setInquiries] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [adminNote, setAdminNote] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     loadData();
@@ -32,31 +34,29 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Firebase 사용 시
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
+      const firestoreService = require('../services/firestore.service');
 
-        if (activeTab === 'reports') {
-          firestoreService.subscribeToReports((fetchedReports) => {
-            setReports(fetchedReports);
-            setLoading(false);
-          });
-        } else {
-          firestoreService.subscribeToAllInquiries((fetchedInquiries) => {
-            setInquiries(fetchedInquiries);
-            setLoading(false);
-          });
-        }
-      } else {
-        // localStorage 사용 시
-        if (activeTab === 'reports') {
-          const saved = localStorage.getItem('petPhotos_reports');
-          setReports(saved ? JSON.parse(saved) : []);
-        } else {
-          const saved = localStorage.getItem('petPhotos_inquiries');
-          setInquiries(saved ? JSON.parse(saved) : []);
-        }
+      if (activeTab === 'reports') {
+        firestoreService.subscribeToReports((fetchedReports) => {
+          setReports(fetchedReports);
+          setLoading(false);
+        });
+      } else if (activeTab === 'inquiries') {
+        firestoreService.subscribeToAllInquiries((fetchedInquiries) => {
+          setInquiries(fetchedInquiries);
+          setLoading(false);
+        });
+      } else if (activeTab === 'password-reset') {
+        // 모든 사용자 가져오기
+        const { collection, getDocs } = require('firebase/firestore');
+        const { db } = require('../config/firebase.config');
+        const usersRef = collection(db, 'users');
+        const querySnapshot = await getDocs(usersRef);
+        const fetchedUsers = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setUsers(fetchedUsers);
         setLoading(false);
       }
     } catch (error) {
@@ -73,22 +73,8 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
 
   const resolveReport = async (status) => {
     try {
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
-        await firestoreService.updateReportStatus(selectedItem.id, status, adminNote);
-      } else {
-        // localStorage 사용 시
-        const saved = localStorage.getItem('petPhotos_reports');
-        const all = saved ? JSON.parse(saved) : [];
-        const updated = all.map(r =>
-          r.id === selectedItem.id
-            ? { ...r, status, adminNote, resolvedAt: new Date().toISOString() }
-            : r
-        );
-        localStorage.setItem('petPhotos_reports', JSON.stringify(updated));
-        setReports(updated);
-      }
+      const firestoreService = require('../services/firestore.service');
+      await firestoreService.updateReportStatus(selectedItem.id, status, adminNote);
 
       setShowActionModal(false);
       if (Platform.OS === 'web') {
@@ -112,22 +98,8 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
     }
 
     try {
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
-        await firestoreService.answerInquiry(selectedItem.id, adminNote, currentUser.id);
-      } else {
-        // localStorage 사용 시
-        const saved = localStorage.getItem('petPhotos_inquiries');
-        const all = saved ? JSON.parse(saved) : [];
-        const updated = all.map(inq =>
-          inq.id === selectedItem.id
-            ? { ...inq, status: 'answered', answer: adminNote, answeredAt: new Date().toISOString(), adminId: currentUser.id }
-            : inq
-        );
-        localStorage.setItem('petPhotos_inquiries', JSON.stringify(updated));
-        setInquiries(updated);
-      }
+      const firestoreService = require('../services/firestore.service');
+      await firestoreService.answerInquiry(selectedItem.id, adminNote, currentUser.id);
 
       setShowActionModal(false);
       if (Platform.OS === 'web') {
@@ -214,6 +186,67 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
     return labels[reason] || reason;
   };
 
+  const renderUser = ({ item }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => {
+        setSelectedItem(item);
+        setNewPassword('');
+        setShowActionModal(true);
+      }}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>사용자</Text>
+        </View>
+      </View>
+      <Text style={styles.cardTitle}>닉네임: {item.nickname}</Text>
+      <Text style={styles.cardContent}>연락처: {item.contactInfo || '등록되지 않음'}</Text>
+      <Text style={styles.cardDate}>가입일: {new Date(item.createdAt).toLocaleDateString()}</Text>
+    </TouchableOpacity>
+  );
+
+  const resetPassword = async () => {
+    if (!newPassword.trim()) {
+      if (Platform.OS === 'web') {
+        alert('새 비밀번호를 입력해주세요.');
+      } else {
+        Alert.alert('알림', '새 비밀번호를 입력해주세요.');
+      }
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      if (Platform.OS === 'web') {
+        alert('비밀번호는 최소 4자 이상이어야 합니다.');
+      } else {
+        Alert.alert('알림', '비밀번호는 최소 4자 이상이어야 합니다.');
+      }
+      return;
+    }
+
+    try {
+      const { doc, updateDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+      const userRef = doc(db, 'users', selectedItem.id);
+      await updateDoc(userRef, { password: newPassword });
+
+      setShowActionModal(false);
+      if (Platform.OS === 'web') {
+        alert('비밀번호가 재설정되었습니다.');
+      } else {
+        Alert.alert('완료', '비밀번호가 재설정되었습니다.');
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      if (Platform.OS === 'web') {
+        alert('비밀번호 재설정에 실패했습니다.');
+      } else {
+        Alert.alert('오류', '비밀번호 재설정에 실패했습니다.');
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* 헤더 */}
@@ -264,6 +297,14 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
             문의 관리
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'password-reset' && styles.tabActive]}
+          onPress={() => setActiveTab('password-reset')}
+        >
+          <Text style={[styles.tabText, activeTab === 'password-reset' && styles.tabTextActive]}>
+            비밀번호 재설정
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -272,19 +313,19 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
         </View>
       ) : (
         <FlatList
-          data={activeTab === 'reports' ? reports : inquiries}
-          renderItem={activeTab === 'reports' ? renderReport : renderInquiry}
+          data={activeTab === 'reports' ? reports : activeTab === 'inquiries' ? inquiries : users}
+          renderItem={activeTab === 'reports' ? renderReport : activeTab === 'inquiries' ? renderInquiry : renderUser}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons
-                name={activeTab === 'reports' ? 'shield-checkmark-outline' : 'chatbubbles-outline'}
+                name={activeTab === 'reports' ? 'shield-checkmark-outline' : activeTab === 'inquiries' ? 'chatbubbles-outline' : 'people-outline'}
                 size={64}
                 color="#ccc"
               />
               <Text style={styles.emptyText}>
-                {activeTab === 'reports' ? '신고가 없습니다' : '문의가 없습니다'}
+                {activeTab === 'reports' ? '신고가 없습니다' : activeTab === 'inquiries' ? '문의가 없습니다' : '사용자가 없습니다'}
               </Text>
             </View>
           }
@@ -307,7 +348,7 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
           <View style={styles.actionModal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {activeTab === 'reports' ? '신고 처리' : '문의 답변'}
+                {activeTab === 'reports' ? '신고 처리' : activeTab === 'inquiries' ? '문의 답변' : '비밀번호 재설정'}
               </Text>
               <TouchableOpacity onPress={() => setShowActionModal(false)}>
                 <Ionicons name="close" size={28} color="#333" />
@@ -351,7 +392,7 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
                     </TouchableOpacity>
                   </View>
                 </>
-              ) : selectedItem ? (
+              ) : selectedItem && activeTab === 'inquiries' ? (
                 <>
                   <Text style={styles.label}>제목</Text>
                   <Text style={styles.value}>{selectedItem.title}</Text>
@@ -374,6 +415,33 @@ export default function AdminDashboardScreen({ navigation, isWebPortal = false, 
                     onPress={answerInquiry}
                   >
                     <Text style={styles.actionButtonText}>답변 등록</Text>
+                  </TouchableOpacity>
+                </>
+              ) : selectedItem && activeTab === 'password-reset' ? (
+                <>
+                  <Text style={styles.label}>닉네임</Text>
+                  <Text style={styles.value}>{selectedItem.nickname}</Text>
+
+                  <Text style={styles.label}>연락처</Text>
+                  <Text style={styles.value}>{selectedItem.contactInfo || '등록되지 않음'}</Text>
+
+                  <Text style={styles.label}>가입일</Text>
+                  <Text style={styles.value}>{new Date(selectedItem.createdAt).toLocaleString()}</Text>
+
+                  <Text style={styles.label}>새 비밀번호</Text>
+                  <TextInput
+                    style={styles.noteInput}
+                    placeholder="새 비밀번호를 입력하세요... (최소 4자)"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={false}
+                  />
+
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.actionButtonResolved]}
+                    onPress={resetPassword}
+                  >
+                    <Text style={styles.actionButtonText}>비밀번호 재설정</Text>
                   </TouchableOpacity>
                 </>
               ) : null}

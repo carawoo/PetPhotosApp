@@ -42,53 +42,54 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
-  const handleDeleteAccount = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('정말로 회원탈퇴 하시겠습니까?\n모든 데이터가 삭제됩니다.')) {
-        // 사용자 데이터 삭제 로직
-        try {
-          const users = JSON.parse(localStorage.getItem('petPhotos_users') || '[]');
-          const updatedUsers = users.filter(u => u.id !== currentUser.id);
-          localStorage.setItem('petPhotos_users', JSON.stringify(updatedUsers));
-          localStorage.removeItem('petPhotos_currentUser');
-          localStorage.removeItem('petPhotos_autoLogin');
-          localStorage.removeItem(`notifications_${currentUser.id}`);
+  const handleDeleteAccount = async () => {
+    const confirmDelete = Platform.OS === 'web'
+      ? window.confirm('정말로 회원탈퇴 하시겠습니까?\n모든 데이터가 삭제됩니다.')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            '회원탈퇴',
+            '정말로 회원탈퇴 하시겠습니까?\n모든 데이터가 삭제됩니다.',
+            [
+              { text: '취소', style: 'cancel', onPress: () => resolve(false) },
+              { text: '탈퇴', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
 
-          alert('회원탈퇴가 완료되었습니다.');
-          logout();
-          navigation.goBack();
-        } catch (error) {
-          alert('회원탈퇴 중 오류가 발생했습니다.');
-        }
+    if (!confirmDelete) return;
+
+    try {
+      // Firestore에서 사용자 데이터 삭제
+      const { doc, deleteDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+      const firestoreService = require('../services/firestore.service');
+
+      // 1. 사용자 알림 모두 삭제
+      await firestoreService.clearAllUserNotifications(currentUser.id);
+
+      // 2. 사용자 문서 삭제
+      const userRef = doc(db, 'users', currentUser.id);
+      await deleteDoc(userRef);
+
+      // 3. 로컬 세션 정보 삭제
+      localStorage.removeItem('petPhotos_autoLogin');
+      localStorage.removeItem('petPhotos_userId');
+
+      if (Platform.OS === 'web') {
+        alert('회원탈퇴가 완료되었습니다.');
+      } else {
+        Alert.alert('알림', '회원탈퇴가 완료되었습니다.');
       }
-    } else {
-      Alert.alert(
-        '회원탈퇴',
-        '정말로 회원탈퇴 하시겠습니까?\n모든 데이터가 삭제됩니다.',
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '탈퇴',
-            style: 'destructive',
-            onPress: () => {
-              try {
-                const users = JSON.parse(localStorage.getItem('petPhotos_users') || '[]');
-                const updatedUsers = users.filter(u => u.id !== currentUser.id);
-                localStorage.setItem('petPhotos_users', JSON.stringify(updatedUsers));
-                localStorage.removeItem('petPhotos_currentUser');
-                localStorage.removeItem('petPhotos_autoLogin');
-                localStorage.removeItem(`notifications_${currentUser.id}`);
 
-                Alert.alert('알림', '회원탈퇴가 완료되었습니다.');
-                logout();
-                navigation.goBack();
-              } catch (error) {
-                Alert.alert('오류', '회원탈퇴 중 오류가 발생했습니다.');
-              }
-            },
-          },
-        ]
-      );
+      logout();
+      navigation.goBack();
+    } catch (error) {
+      console.error('Delete account error:', error);
+      if (Platform.OS === 'web') {
+        alert('회원탈퇴 중 오류가 발생했습니다.');
+      } else {
+        Alert.alert('오류', '회원탈퇴 중 오류가 발생했습니다.');
+      }
     }
   };
 

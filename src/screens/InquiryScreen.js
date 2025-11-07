@@ -29,24 +29,12 @@ export default function InquiryScreen({ navigation }) {
   const loadInquiries = async () => {
     setLoading(true);
     try {
-      // Firebase 사용 시
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
-        firestoreService.subscribeToUserInquiries(currentUser.id, (fetchedInquiries) => {
-          setInquiries(fetchedInquiries);
-          setLoading(false);
-        });
-      } else {
-        // localStorage 사용 시
-        const saved = localStorage.getItem('petPhotos_inquiries');
-        if (saved) {
-          const all = JSON.parse(saved);
-          const userInquiries = all.filter(inq => inq.userId === currentUser.id);
-          setInquiries(userInquiries);
-        }
+      // Firestore 실시간 구독
+      const firestoreService = require('../services/firestore.service');
+      firestoreService.subscribeToUserInquiries(currentUser.id, (fetchedInquiries) => {
+        setInquiries(fetchedInquiries);
         setLoading(false);
-      }
+      });
     } catch (error) {
       console.error('Load inquiries error:', error);
       setLoading(false);
@@ -74,18 +62,9 @@ export default function InquiryScreen({ navigation }) {
         createdAt: new Date().toISOString(),
       };
 
-      // Firebase 사용 시
-      const firebaseConfig = require('../config/firebase.config');
-      if (firebaseConfig.db) {
-        const firestoreService = require('../services/firestore.service');
-        await firestoreService.createInquiry(inquiryData);
-      } else {
-        // localStorage 사용 시
-        const saved = localStorage.getItem('petPhotos_inquiries');
-        const all = saved ? JSON.parse(saved) : [];
-        all.push({ ...inquiryData, id: Date.now().toString() });
-        localStorage.setItem('petPhotos_inquiries', JSON.stringify(all));
-      }
+      // Firestore에 저장
+      const firestoreService = require('../services/firestore.service');
+      await firestoreService.createInquiry(inquiryData);
 
       setTitle('');
       setContent('');

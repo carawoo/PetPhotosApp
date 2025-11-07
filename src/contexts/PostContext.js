@@ -165,22 +165,13 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // 다른 사용자에게 알림 보내기 (localStorage에 직접 저장)
-  const sendNotificationToUser = (targetUserId, notification) => {
+  // 다른 사용자에게 알림 보내기 (Firestore 저장)
+  const sendNotificationToUser = async (targetUserId, notification) => {
     try {
-      const notificationsKey = `notifications_${targetUserId}`;
-      const savedNotifications = localStorage.getItem(notificationsKey);
-      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
-
-      const newNotification = {
-        id: Date.now().toString(),
+      await firestoreService.createNotification({
         ...notification,
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      const updated = [newNotification, ...notifications];
-      localStorage.setItem(notificationsKey, JSON.stringify(updated));
+        targetUserId,
+      });
     } catch (error) {
       console.error('Failed to send notification:', error);
     }

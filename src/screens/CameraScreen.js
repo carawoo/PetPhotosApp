@@ -111,11 +111,20 @@ export default function CameraScreen() {
     };
   }, []);
 
-  const loadCustomFilters = () => {
+  const loadCustomFilters = async () => {
     try {
-      const saved = localStorage.getItem('customFilters');
-      if (saved) {
-        setCustomFilters(JSON.parse(saved));
+      // Firestore에서 사용자의 커스텀 필터 로드
+      const { doc, getDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const userRef = doc(db, 'users', currentUser.id);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        if (userData.customFilters) {
+          setCustomFilters(userData.customFilters);
+        }
       }
     } catch (error) {
       console.error('Failed to load custom filters:', error);
@@ -126,7 +135,7 @@ export default function CameraScreen() {
     setShowFilterNameInput(true);
   };
 
-  const confirmSaveFilter = () => {
+  const confirmSaveFilter = async () => {
     if (!filterName.trim()) {
       alert('필터 이름을 입력해주세요.');
       return;
@@ -142,7 +151,17 @@ export default function CameraScreen() {
 
     const updated = [...customFilters, newFilter];
     setCustomFilters(updated);
-    localStorage.setItem('customFilters', JSON.stringify(updated));
+
+    // Firestore에 저장
+    try {
+      const { doc, updateDoc } = require('firebase/firestore');
+      const { db } = require('../config/firebase.config');
+
+      const userRef = doc(db, 'users', currentUser.id);
+      await updateDoc(userRef, { customFilters: updated });
+    } catch (error) {
+      console.error('Failed to save custom filter:', error);
+    }
 
     // 초기화
     setBrightness(100);
@@ -156,11 +175,21 @@ export default function CameraScreen() {
     alert('커스텀 필터가 저장되었습니다!');
   };
 
-  const deleteCustomFilter = (filterId) => {
+  const deleteCustomFilter = async (filterId) => {
     if (window.confirm('이 필터를 삭제하시겠습니까?')) {
       const updated = customFilters.filter(f => f.id !== filterId);
       setCustomFilters(updated);
-      localStorage.setItem('customFilters', JSON.stringify(updated));
+
+      // Firestore에 저장
+      try {
+        const { doc, updateDoc } = require('firebase/firestore');
+        const { db } = require('../config/firebase.config');
+
+        const userRef = doc(db, 'users', currentUser.id);
+        await updateDoc(userRef, { customFilters: updated });
+      } catch (error) {
+        console.error('Failed to delete custom filter:', error);
+      }
 
       if (selectedFilter === filterId) {
         setSelectedFilter('normal');

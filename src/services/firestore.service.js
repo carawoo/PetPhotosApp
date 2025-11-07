@@ -477,3 +477,115 @@ export const unbanUser = async (userId) => {
     throw error;
   }
 };
+
+// ====== 알림 관련 ======
+
+/**
+ * 사용자 알림 구독 (실시간)
+ */
+export const subscribeToUserNotifications = (userId, callback) => {
+  const q = query(
+    collection(db, 'notifications'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const notifications = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      }))
+      .filter(notification => notification.targetUserId === userId);
+    callback(notifications);
+  }, (error) => {
+    console.error('Notifications subscription error:', error);
+    callback([]);
+  });
+};
+
+/**
+ * 알림 추가
+ */
+export const createNotification = async (notificationData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'notifications'), {
+      ...notificationData,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Create notification error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 알림 읽음 처리
+ */
+export const markNotificationAsRead = async (notificationId) => {
+  try {
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notificationRef, {
+      read: true,
+      readAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Mark notification as read error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 모든 알림 읽음 처리
+ */
+export const markAllNotificationsAsRead = async (userId) => {
+  try {
+    const q = query(collection(db, 'notifications'));
+    const snapshot = await getDocs(q);
+
+    const updatePromises = snapshot.docs
+      .filter(doc => doc.data().targetUserId === userId && !doc.data().read)
+      .map(doc => updateDoc(doc.ref, {
+        read: true,
+        readAt: serverTimestamp(),
+      }));
+
+    await Promise.all(updatePromises);
+  } catch (error) {
+    console.error('Mark all notifications as read error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 알림 삭제
+ */
+export const deleteNotification = async (notificationId) => {
+  try {
+    await deleteDoc(doc(db, 'notifications', notificationId));
+  } catch (error) {
+    console.error('Delete notification error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 사용자의 모든 알림 삭제
+ */
+export const clearAllUserNotifications = async (userId) => {
+  try {
+    const q = query(collection(db, 'notifications'));
+    const snapshot = await getDocs(q);
+
+    const deletePromises = snapshot.docs
+      .filter(doc => doc.data().targetUserId === userId)
+      .map(doc => deleteDoc(doc.ref));
+
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Clear all notifications error:', error);
+    throw error;
+  }
+};
