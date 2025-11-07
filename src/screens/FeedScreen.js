@@ -64,17 +64,12 @@ export default function FeedScreen() {
     // 비회원은 로그인 필요
     if (!currentUser) {
       if (Platform.OS === 'web') {
-        if (window.confirm('댓글을 작성하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
-          navigation.navigate('Login');
-        }
+        window.alert('댓글을 작성하려면 로그인이 필요합니다.\n상단의 로그인 버튼을 클릭해주세요.');
       } else {
         Alert.alert(
           '로그인 필요',
           '댓글을 작성하려면 로그인이 필요합니다.',
-          [
-            { text: '취소', style: 'cancel' },
-            { text: '로그인', onPress: () => navigation.navigate('Login') }
-          ]
+          [{ text: '확인', style: 'default' }]
         );
       }
       return;
