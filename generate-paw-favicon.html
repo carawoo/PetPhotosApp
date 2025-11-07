@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Paw Favicon Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin: 20px;
+    }
+    button {
+      background: #FF3366;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background: #e02957;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐾 Paw Favicon Generator</h1>
+
+  <div>
+    <canvas id="favicon16" width="16" height="16"></canvas>
+    <canvas id="favicon32" width="32" height="32"></canvas>
+    <canvas id="favicon512" width="512" height="512"></canvas>
+  </div>
+
+  <div>
+    <button onclick="downloadFavicon(16)">Download 16x16</button>
+    <button onclick="downloadFavicon(32)">Download 32x32</button>
+    <button onclick="downloadFavicon(512)">Download 512x512</button>
+  </div>
+
+  <script>
+    const pawColor = '#FF3366';
+
+    // Draw paw on canvas
+    function drawPaw(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const scale = size / 72;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size);
+
+      // Set color
+      ctx.fillStyle = pawColor;
+
+      // Scale to center and fit
+      ctx.save();
+      ctx.translate(size / 2, size / 2);
+      ctx.scale(scale, scale);
+
+      // Draw paw shape (simplified version)
+      // Main pad (bottom large oval)
+      ctx.beginPath();
+      ctx.ellipse(0, 12, 16, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Top left toe
+      ctx.beginPath();
+      ctx.ellipse(-12, -8, 6, 8, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Top center toe
+      ctx.beginPath();
+      ctx.ellipse(0, -12, 6, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Top right toe
+      ctx.beginPath();
+      ctx.ellipse(12, -8, 6, 8, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Middle pad
+      ctx.beginPath();
+      ctx.ellipse(0, -2, 7, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Initialize canvases
+    drawPaw(document.getElementById('favicon16'), 16);
+    drawPaw(document.getElementById('favicon32'), 32);
+    drawPaw(document.getElementById('favicon512'), 512);
+
+    // Download function
+    function downloadFavicon(size) {
+      const canvas = document.getElementById('favicon' + size);
+      const link = document.createElement('a');
+      link.download = `paw-favicon-${size}x${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>
