@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +27,7 @@ export default function LoginScreen() {
   const [forgotNickname, setForgotNickname] = useState('');
   const [forgotContactInfo, setForgotContactInfo] = useState('');
   const [foundPassword, setFoundPassword] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const { signup, login, isNicknameAvailable } = useAuth();
 
   const handleSubmit = async () => {
@@ -113,24 +115,49 @@ export default function LoginScreen() {
       return;
     }
 
-    // 이메일로 전송
-    const subject = encodeURIComponent('[Peto] 비밀번호 재설정 요청');
-    const body = encodeURIComponent(
-      `비밀번호 재설정 요청\n\n` +
-      `닉네임: ${forgotNickname}\n` +
-      `가입 시 등록한 연락처: ${forgotContactInfo}\n\n` +
-      `위 정보로 비밀번호 재설정을 도와주세요.`
-    );
-    const mailtoUrl = `mailto:carawoo96@gmail.com?subject=${subject}&body=${body}`;
+    setIsSendingEmail(true);
 
-    if (Platform.OS === 'web') {
-      window.open(mailtoUrl, '_blank');
-      setFoundPassword('confirmed');
-    } else {
-      // 모바일에서는 Linking 사용
-      // import { Linking } from 'react-native';
-      // Linking.openURL(mailtoUrl);
-      setFoundPassword('confirmed');
+    try {
+      // Web3Forms를 사용한 이메일 전송
+      // API 키는 WEB3FORMS_SETUP.md를 참고하여 설정해주세요
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: 'ece78583-d6ce-47b9-8600-cd1731cc516d', // https://web3forms.com에서 받은 키
+          subject: '[Peto] 비밀번호 재설정 요청',
+          from_name: 'Peto App',
+          email: forgotContactInfo, // 답장 받을 이메일 (사용자가 입력한 연락처)
+          to_email: 'carawoo96@gmail.com', // 실제 받는 이메일
+          message: `비밀번호 재설정 요청\n\n닉네임: ${forgotNickname}\n가입 시 등록한 연락처: ${forgotContactInfo}\n\n위 정보로 비밀번호를 재설정해주세요.`
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsSendingEmail(false);
+        closeForgotPassword();
+
+        if (Platform.OS === 'web') {
+          alert('비밀번호 재설정 요청이 전송되었습니다.\n관리자가 확인 후 연락드리겠습니다.');
+        } else {
+          Alert.alert('전송 완료', '비밀번호 재설정 요청이 전송되었습니다.\n관리자가 확인 후 연락드리겠습니다.');
+        }
+      } else {
+        throw new Error(data.message || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('이메일 전송 실패:', error);
+      setIsSendingEmail(false);
+
+      if (Platform.OS === 'web') {
+        alert('이메일 전송에 실패했습니다.\n잠시 후 다시 시도해주세요.');
+      } else {
+        Alert.alert('전송 실패', '이메일 전송에 실패했습니다.\n잠시 후 다시 시도해주세요.');
+      }
     }
   };
 
@@ -302,7 +329,7 @@ export default function LoginScreen() {
               <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="계란후라이"
+                placeholder="예) 가입 시 닉네임"
                 value={forgotNickname}
                 onChangeText={setForgotNickname}
                 autoCapitalize="none"
@@ -322,23 +349,19 @@ export default function LoginScreen() {
               />
             </View>
 
-            {foundPassword ? (
-              <View style={styles.passwordFoundContainer}>
-                <Ionicons name="checkmark-circle" size={24} color="#34C759" />
-                <Text style={styles.passwordFoundText}>
-                  위 이메일로 다음 정보를 보내주세요:{'\n'}
-                  • 닉네임: <Text style={styles.passwordValue}>{forgotNickname}</Text>{'\n'}
-                  • 가입 시 등록한 연락처{'\n'}
-                  관리자가 확인 후 재설정을 도와드립니다.
-                </Text>
-              </View>
-            ) : null}
-
             <TouchableOpacity
-              style={styles.modalButton}
+              style={[styles.modalButton, isSendingEmail && styles.modalButtonDisabled]}
               onPress={handleForgotPassword}
+              disabled={isSendingEmail}
             >
-              <Text style={styles.modalButtonText}>안내 확인</Text>
+              {isSendingEmail ? (
+                <View style={styles.sendingContainer}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={[styles.modalButtonText, { marginLeft: 10 }]}>전송 중...</Text>
+                </View>
+              ) : (
+                <Text style={styles.modalButtonText}>이메일 전송하기</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -579,9 +602,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  modalButtonDisabled: {
+    backgroundColor: '#FFA3B8',
+    shadowOpacity: 0.1,
+  },
   modalButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  sendingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
