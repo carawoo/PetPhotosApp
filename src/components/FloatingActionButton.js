@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Text,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,22 +37,32 @@ export default function FloatingActionButton({ navigation }) {
   const checkLogin = () => {
     if (!currentUser) {
       setMenuOpen(false);
-      Alert.alert(
-        '로그인이 필요합니다',
-        '게시물을 작성하려면 로그인이 필요합니다.',
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '로그인',
-            onPress: () => {
-              // 프로필 탭으로 이동 (로그인 화면)
-              if (navigation) {
-                navigation.navigate('Profile');
-              }
+
+      if (Platform.OS === 'web') {
+        // 웹 브라우저
+        const shouldLogin = window.confirm('게시물을 작성하려면 로그인이 필요합니다.\n\n로그인 페이지로 이동하시겠습니까?');
+        if (shouldLogin && navigation) {
+          navigation.navigate('Profile');
+        }
+      } else {
+        // 모바일 앱
+        Alert.alert(
+          '로그인이 필요합니다',
+          '게시물을 작성하려면 로그인이 필요합니다.',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '로그인',
+              onPress: () => {
+                if (navigation) {
+                  navigation.navigate('Profile');
+                }
+              },
             },
-          },
-        ]
-      );
+          ],
+          { cancelable: true }
+        );
+      }
       return false;
     }
     return true;
