@@ -13,6 +13,7 @@ function AppContent() {
   const { currentUser, loading, useFirebase } = useAuth();
   const [isAdminRoute, setIsAdminRoute] = useState(false);
   const [isPublicRoute, setIsPublicRoute] = useState(false);
+  const [showLoginScreen, setShowLoginScreen] = useState(false);
 
   useEffect(() => {
     // 웹에서만 경로 체크
@@ -24,11 +25,18 @@ function AppContent() {
       console.log('🔍 Route check:', { pathname, isAdmin, isPublic, Platform: Platform.OS });
       setIsAdminRoute(isAdmin);
       setIsPublicRoute(isPublic);
+
+      // 로그인 요청 플래그 체크
+      const requestLogin = localStorage.getItem('peto_requestLogin');
+      if (requestLogin === 'true' && !currentUser) {
+        setShowLoginScreen(true);
+        localStorage.removeItem('peto_requestLogin');
+      }
     }
 
     // Firestore 상태 로그
     console.log('🔥 Firestore status:', useFirebase ? '✅ ENABLED' : '📦 localStorage only');
-  }, []);
+  }, [currentUser]);
 
   console.log('🎯 AppContent render:', {
     isAdminRoute,
@@ -55,6 +63,12 @@ function AppContent() {
         <ActivityIndicator size="large" color="#FF3366" />
       </View>
     );
+  }
+
+  // 로그인 화면 표시 (로그인 요청이 있고 비회원인 경우)
+  if (showLoginScreen && !currentUser) {
+    console.log('🔐 Rendering LoginScreen (requested)');
+    return <LoginScreen onLoginSuccess={() => setShowLoginScreen(false)} />;
   }
 
   // 비회원도 피드를 볼 수 있도록 항상 AppNavigator 렌더링

@@ -72,6 +72,7 @@ export default function ProfileScreen({ route, navigation }) {
           style={styles.loginButton}
           onPress={() => {
             if (Platform.OS === 'web') {
+              localStorage.setItem('peto_requestLogin', 'true');
               window.location.href = '/';
             }
           }}

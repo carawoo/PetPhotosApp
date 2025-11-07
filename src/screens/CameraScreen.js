@@ -62,6 +62,7 @@ export default function CameraScreen() {
           style={styles.loginRequiredButton}
           onPress={() => {
             if (Platform.OS === 'web') {
+              localStorage.setItem('peto_requestLogin', 'true');
               window.location.href = '/';
             }
           }}

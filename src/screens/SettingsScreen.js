@@ -35,6 +35,7 @@ export default function SettingsScreen({ navigation }) {
           style={styles.loginRequiredButton}
           onPress={() => {
             if (Platform.OS === 'web') {
+              localStorage.setItem('peto_requestLogin', 'true');
               window.location.href = '/';
             } else {
               navigation.goBack();
