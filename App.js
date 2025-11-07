@@ -78,6 +78,67 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // PWA에서 뒤로 스와이프 제스처 비활성화 (웹만)
+    if (Platform.OS === 'web') {
+      // body와 html에 overscroll-behavior 적용
+      const style = document.createElement('style');
+      style.innerHTML = `
+        html, body {
+          overscroll-behavior: none;
+          overscroll-behavior-x: none;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* iOS Safari에서 pull-to-refresh 비활성화 */
+        body {
+          position: fixed;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        #root {
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          overscroll-behavior: none;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // 터치 이벤트로 뒤로가기 제스처 방지
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      const handleTouchStart = (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      };
+
+      const handleTouchMove = (e) => {
+        const touchEndX = e.touches[0].clientX;
+        const touchEndY = e.touches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+
+        // 좌우 스와이프가 상하 스와이프보다 크고, 화면 가장자리에서 시작된 경우
+        if (Math.abs(diffX) > Math.abs(diffY) && (touchStartX < 50 || touchStartX > window.innerWidth - 50)) {
+          e.preventDefault();
+        }
+      };
+
+      document.addEventListener('touchstart', handleTouchStart, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+      return () => {
+        document.head.removeChild(style);
+        document.removeEventListener('touchstart', handleTouchStart);
+        document.removeEventListener('touchmove', handleTouchMove);
+      };
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
