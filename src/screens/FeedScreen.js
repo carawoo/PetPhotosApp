@@ -478,7 +478,10 @@ export default function FeedScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🐾 Peto</Text>
+        <View style={styles.headerLeft}>
+          <Ionicons name="paw" size={32} color="#FF3366" />
+          <Text style={styles.headerTitle}>Peto</Text>
+        </View>
         <TouchableOpacity
           onPress={handleNotifications}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -1043,6 +1046,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   headerTitle: {
     fontSize: 28,
