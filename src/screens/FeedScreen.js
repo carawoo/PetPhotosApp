@@ -29,18 +29,41 @@ export default function FeedScreen({ route }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
 
+  // 랜덤 순서를 세션에 저장 (새로고침 시에만 변경)
+  const [postOrder, setPostOrder] = useState(() => {
+    // 웹에서만 세션 스토리지에서 기존 순서 불러오기
+    if (Platform.OS === 'web') {
+      const saved = sessionStorage.getItem('peto_feedOrder');
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
+
   // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
   const randomizedPosts = useMemo(() => {
     if (!posts || posts.length === 0) return [];
 
-    // 각 게시물에 랜덤 가중치 부여
+    // 기존 순서가 있고, 게시물 ID가 동일하면 기존 순서 유지
+    if (postOrder && postOrder.length === posts.length) {
+      const currentIds = posts.map(p => p.id).sort().join(',');
+      const savedIds = postOrder.map(p => p.id).sort().join(',');
+
+      if (currentIds === savedIds) {
+        // 기존 순서대로 정렬하되, posts의 최신 데이터로 업데이트
+        return postOrder.map(orderedPost => {
+          const updatedPost = posts.find(p => p.id === orderedPost.id);
+          return updatedPost || orderedPost;
+        });
+      }
+    }
+
+    // 새로운 랜덤 순서 생성 (게시물이 추가/삭제된 경우에만)
     const postsWithWeights = posts.map(post => {
       const now = Date.now();
       const postTime = post.createdAt?.toDate ? post.createdAt.toDate().getTime() : now;
       const ageInDays = (now - postTime) / (1000 * 60 * 60 * 24);
 
       // 시간 가중치: 최근 게시물은 1.0, 30일 이상 된 게시물은 0.5
-      // 하지만 완전히 랜덤이 아니라 약간의 우선순위만 부여
       const timeWeight = Math.max(0.5, 1 - (ageInDays / 60));
 
       // 참여도 가중치: 좋아요와 댓글 수
@@ -57,9 +80,17 @@ export default function FeedScreen({ route }) {
       };
     });
 
-    // 가중치 기반 정렬 (높은 가중치가 우선)
-    return postsWithWeights.sort((a, b) => b.sortWeight - a.sortWeight);
-  }, [posts]);
+    // 가중치 기반 정렬
+    const sorted = postsWithWeights.sort((a, b) => b.sortWeight - a.sortWeight);
+
+    // 새로운 순서를 세션 스토리지에 저장 (웹만)
+    setPostOrder(sorted);
+    if (Platform.OS === 'web') {
+      sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id, sortWeight: p.sortWeight }))));
+    }
+
+    return sorted;
+  }, [posts, postOrder]);
 
   // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
   useEffect(() => {

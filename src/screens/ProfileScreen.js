@@ -209,6 +209,7 @@ export default function ProfileScreen({ route, navigation }) {
     if (Platform.OS === 'web') {
       if (window.confirm('정말 로그아웃하시겠습니까?')) {
         logout();
+        navigation.navigate('Feed');
       }
     } else {
       Alert.alert(
@@ -218,7 +219,10 @@ export default function ProfileScreen({ route, navigation }) {
           { text: '취소', style: 'cancel' },
           {
             text: '로그아웃',
-            onPress: () => logout(),
+            onPress: () => {
+              logout();
+              navigation.navigate('Feed');
+            },
             style: 'destructive',
           },
         ]
@@ -845,7 +849,12 @@ export default function ProfileScreen({ route, navigation }) {
         animationType="slide"
         onRequestClose={() => setShowSettingsScreen(false)}
       >
-        <SettingsScreen navigation={{ goBack: () => setShowSettingsScreen(false) }} />
+        <SettingsScreen
+          navigation={{
+            goBack: () => setShowSettingsScreen(false),
+            navigate: navigation.navigate
+          }}
+        />
       </Modal>
 
       {/* 관리자 대시보드 Modal */}

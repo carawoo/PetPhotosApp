@@ -53,6 +53,10 @@ export default function SettingsScreen({ navigation }) {
       if (window.confirm('로그아웃 하시겠습니까?')) {
         logout();
         navigation.goBack();
+        // Modal이 닫힌 후 Feed로 이동
+        setTimeout(() => {
+          navigation.navigate && navigation.navigate('Feed');
+        }, 100);
       }
     } else {
       Alert.alert(
@@ -65,6 +69,10 @@ export default function SettingsScreen({ navigation }) {
             onPress: () => {
               logout();
               navigation.goBack();
+              // Modal이 닫힌 후 Feed로 이동
+              setTimeout(() => {
+                navigation.navigate && navigation.navigate('Feed');
+              }, 100);
             },
           },
         ]
@@ -160,6 +168,10 @@ export default function SettingsScreen({ navigation }) {
 
       logout();
       navigation.goBack();
+      // Modal이 닫힌 후 Feed로 이동
+      setTimeout(() => {
+        navigation.navigate && navigation.navigate('Feed');
+      }, 100);
     } catch (error) {
       console.error('Delete account error:', error);
       if (Platform.OS === 'web') {
