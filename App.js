@@ -57,14 +57,10 @@ function AppContent() {
     );
   }
 
-  // 공개 경로이거나 로그인 되어있으면 앱 보여주기
-  if (currentUser || isPublicRoute) {
-    console.log('🏠 Rendering AppNavigator:', currentUser ? 'logged in' : 'public route');
-    return <AppNavigator />;
-  }
-
-  console.log('🔐 Rendering LoginScreen');
-  return <LoginScreen />;
+  // 비회원도 피드를 볼 수 있도록 항상 AppNavigator 렌더링
+  // 로그인이 필요한 기능은 각 화면에서 체크
+  console.log('🏠 Rendering AppNavigator:', currentUser ? 'logged in' : 'guest mode');
+  return <AppNavigator />;
 }
 
 export default function App() {

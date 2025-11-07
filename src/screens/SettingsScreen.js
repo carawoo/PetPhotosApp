@@ -22,6 +22,31 @@ export default function SettingsScreen({ navigation }) {
   const [pets, setPets] = useState(currentUser?.pets || []);
   const [newPetName, setNewPetName] = useState('');
 
+  // 🔒 로그인 체크 - 비로그인 사용자는 설정 화면 접근 불가
+  if (!currentUser) {
+    return (
+      <View style={styles.loginRequiredContainer}>
+        <Ionicons name="settings-outline" size={80} color="#AEAEB2" />
+        <Text style={styles.loginRequiredTitle}>로그인이 필요합니다</Text>
+        <Text style={styles.loginRequiredText}>
+          설정을 이용하려면{'\n'}로그인이 필요합니다.
+        </Text>
+        <TouchableOpacity
+          style={styles.loginRequiredButton}
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.location.href = '/';
+            } else {
+              navigation.goBack();
+            }
+          }}
+        >
+          <Text style={styles.loginRequiredButtonText}>로그인하기</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const handleLogout = () => {
     if (Platform.OS === 'web') {
       if (window.confirm('로그아웃 하시겠습니까?')) {
@@ -775,5 +800,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FF3366',
+  },
+  loginRequiredContainer: {
+    flex: 1,
+    backgroundColor: '#FAFBFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loginRequiredTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  loginRequiredText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  loginRequiredButton: {
+    backgroundColor: '#FF3366',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 24,
+  },
+  loginRequiredButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

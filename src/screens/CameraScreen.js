@@ -49,10 +49,7 @@ export default function CameraScreen() {
   const { currentUser } = useAuth();
   const { addPost } = usePost();
 
-  // 🔒 로그인 체크 (향후 활성화 예정)
-  // 비로그인 사용자가 카메라 탭에 접근할 때 로그인 안내
-  // 현재는 비활성화 상태 - 필요시 주석 해제하여 사용
-  /*
+  // 🔒 로그인 체크 - 비로그인 사용자는 촬영/게시물 작성 불가
   if (!currentUser) {
     return (
       <View style={styles.loginRequiredContainer}>
@@ -74,7 +71,6 @@ export default function CameraScreen() {
       </View>
     );
   }
-  */
 
   // 기본 필터 목록
   const defaultFilters = [
