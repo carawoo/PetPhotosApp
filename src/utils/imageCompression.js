@@ -57,11 +57,11 @@ export const compressImage = async (
           // Base64로 변환 (JPEG, 품질 조절)
           let compressedBase64 = canvas.toDataURL('image/jpeg', quality);
 
-          // 크기 확인 (2000KB 제한으로 증가)
-          const maxSize = 2000 * 1024; // 2000KB (2MB) in bytes
+          // 크기 확인 (Firestore 문서 크기 제한 1MB 고려하여 600KB로 제한)
+          const maxSize = 600 * 1024; // 600KB in bytes
           const base64Size = (compressedBase64.length * 3) / 4; // Base64 실제 크기 계산
 
-          // 2000KB 초과 시 품질 낮춰서 재압축
+          // 600KB 초과 시 품질 낮춰서 재압축
           if (base64Size > maxSize && quality > 0.5) {
             console.log(`Image too large (${(base64Size / 1024).toFixed(0)}KB), re-compressing...`);
             return compressImage(base64Image, maxWidth, maxHeight, quality - 0.1)

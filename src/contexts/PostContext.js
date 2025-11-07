@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { compressImage, formatBase64Size } from '../utils/imageCompression';
+import { compressImage, formatBase64Size, getBase64Size } from '../utils/imageCompression';
 
 // NotificationContext는 동적으로 import
 let useNotificationHook = null;
@@ -79,14 +79,23 @@ export const PostProvider = ({ children }) => {
       let imageUrl = post.imageUrl;
 
       // 이미지 압축 (Base64인 경우)
+      // Firestore 문서 크기 제한(1MB)을 고려하여 최대 600KB로 압축
       if (imageUrl.startsWith('data:image')) {
         console.log('📦 Original image size:', formatBase64Size(imageUrl));
         setUploadProgress(10);
 
         try {
-          imageUrl = await compressImage(imageUrl);
-          console.log('✅ Compressed image size:', formatBase64Size(imageUrl));
+          // 최대 1200px, 품질 0.85로 압축 (Firestore 1MB 제한 고려)
+          imageUrl = await compressImage(imageUrl, 1200, 1200, 0.85);
+          const compressedSize = formatBase64Size(imageUrl);
+          console.log('✅ Compressed image size:', compressedSize);
           setUploadProgress(30);
+
+          // 압축 후에도 너무 크면 경고
+          const sizeInKB = getBase64Size(imageUrl) / 1024;
+          if (sizeInKB > 800) {
+            console.warn('⚠️ Compressed image is still large:', Math.round(sizeInKB), 'KB');
+          }
         } catch (compressionError) {
           console.warn('⚠️ Image compression failed, using original:', compressionError.message);
           // 압축 실패 시 원본 사용 (에러는 발생시키지 않음)
@@ -125,11 +134,16 @@ export const PostProvider = ({ children }) => {
 
       // Firebase에 저장
       setUploadProgress(95);
+      console.log('📝 Attempting to save post to Firestore...');
+      console.log('📦 Post data size (approx):', Math.round(JSON.stringify(newPostData).length / 1024), 'KB');
+
       await firestoreService.createPost(newPostData);
       setUploadProgress(100);
-      console.log('✅ Post saved to Firestore');
+      console.log('✅ Post saved to Firestore successfully!');
     } catch (error) {
-      console.error('Add post error:', error);
+      console.error('❌ Add post error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
       throw error;
     } finally {
       setTimeout(() => setUploadProgress(0), 500);
