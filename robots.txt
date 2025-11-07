@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://peto.real-e.space/sitemap.xml
