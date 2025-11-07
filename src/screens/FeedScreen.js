@@ -303,7 +303,15 @@ export default function FeedScreen() {
       return null;
     }
 
-    const isLiked = item.likedBy?.includes(currentUser?.id);
+    // 좋아요 상태 체크 (비회원은 localStorage, 회원은 likedBy)
+    let isLiked;
+    if (!currentUser) {
+      const guestLikes = JSON.parse(localStorage.getItem('peto_guestLikes') || '[]');
+      isLiked = guestLikes.includes(item.id);
+    } else {
+      isLiked = item.likedBy?.includes(currentUser.id);
+    }
+
     // 게시물에 저장된 authorProfileImage 사용
     const authorProfileImage = item.authorProfileImage || null;
 

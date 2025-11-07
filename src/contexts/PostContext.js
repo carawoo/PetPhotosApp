@@ -209,25 +209,54 @@ export const PostProvider = ({ children }) => {
 
   const toggleLike = async (postId) => {
     try {
-      const userId = currentUser?.id || 'anonymous';
-      const post = posts.find(p => p.id === postId);
-      const isLiked = post?.likedBy?.includes(userId);
+      // 비회원용 디바이스 ID (localStorage 기반)
+      let deviceId = localStorage.getItem('peto_deviceId');
+      if (!deviceId) {
+        deviceId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('peto_deviceId', deviceId);
+      }
 
-      // 좋아요 추가 시 게시물 작성자에게 알림 (본인 게시물 제외)
-      if (!isLiked && post && post.authorId !== userId) {
+      const userId = currentUser?.id || deviceId;
+      const post = posts.find(p => p.id === postId);
+
+      // 비회원은 localStorage에서 좋아요 상태 확인
+      let isLiked;
+      if (!currentUser) {
+        const guestLikes = JSON.parse(localStorage.getItem('peto_guestLikes') || '[]');
+        isLiked = guestLikes.includes(postId);
+      } else {
+        isLiked = post?.likedBy?.includes(userId);
+      }
+
+      // 좋아요 추가 시 게시물 작성자에게 알림 (본인 게시물 제외, 비회원 제외)
+      if (!isLiked && post && post.authorId !== userId && currentUser) {
         sendNotificationToUser(post.authorId, {
           type: 'like',
           postId: postId,
           postImage: post.imageUrl,
-          fromUser: currentUser?.nickname || 'Someone',
+          fromUser: currentUser.nickname,
           fromUserId: userId,
-          message: `${currentUser?.nickname || 'Someone'}님이 회원님의 게시물을 좋아합니다`,
+          message: `${currentUser.nickname}님이 회원님의 게시물을 좋아합니다`,
           targetUserId: post.authorId,
         });
       }
 
       if (!useFirebase) {
         throw new Error('Firestore가 필요합니다');
+      }
+
+      // 비회원인 경우 localStorage에 저장
+      if (!currentUser) {
+        const guestLikes = JSON.parse(localStorage.getItem('peto_guestLikes') || '[]');
+        if (isLiked) {
+          // 좋아요 취소
+          const updatedLikes = guestLikes.filter(id => id !== postId);
+          localStorage.setItem('peto_guestLikes', JSON.stringify(updatedLikes));
+        } else {
+          // 좋아요 추가
+          guestLikes.push(postId);
+          localStorage.setItem('peto_guestLikes', JSON.stringify(guestLikes));
+        }
       }
 
       await firestoreService.toggleLike(postId, userId, isLiked);
