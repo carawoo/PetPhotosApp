@@ -295,18 +295,6 @@ export default function FeedScreen() {
     setCommentText('');
   };
 
-  // 사용자 프로필 이미지 가져오기
-  const getUserProfileImage = (nickname) => {
-    // 현재 로그인한 사용자인 경우 currentUser의 프로필 이미지 반환
-    if (currentUser && currentUser.nickname === nickname) {
-      return currentUser.profileImage || null;
-    }
-
-    // 다른 사용자의 경우 게시물의 authorProfileImage 사용
-    // (PostContext에서 게시물 로드 시 작성자 정보를 포함하도록 수정 필요)
-    return null;
-  };
-
   const renderPost = ({ item }) => {
     // 데이터 검증 - corrupted data 필터링
     if (!item || !item.id || !item.imageUrl || !item.author) {
@@ -315,7 +303,8 @@ export default function FeedScreen() {
     }
 
     const isLiked = item.likedBy?.includes(currentUser?.id);
-    const authorProfileImage = getUserProfileImage(item.author);
+    // 게시물에 저장된 authorProfileImage 사용
+    const authorProfileImage = item.authorProfileImage || null;
 
     return (
       <View style={styles.postContainer}>

@@ -116,6 +116,7 @@ export const PostProvider = ({ children }) => {
         description: post.description || '',
         author: currentUser?.nickname || 'Anonymous',
         authorId: currentUser?.id || 'anonymous',
+        authorProfileImage: currentUser?.profileImage || null,
       };
 
       if (!useFirebase) {
