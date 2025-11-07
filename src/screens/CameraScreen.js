@@ -75,13 +75,14 @@ export default function CameraScreen() {
     );
   }
 
-  // 기본 필터 목록
+  // 기본 필터 목록 (세피아, 빈티지 제거)
   const defaultFilters = [
     { id: 'normal', name: '원본', filter: 'none', isDefault: true },
     { id: 'grayscale', name: '흑백', filter: 'grayscale(100%)', isDefault: true },
-    { id: 'vintage', name: '빈티지', filter: 'sepia(50%) contrast(120%) brightness(95%)', isDefault: true },
     { id: 'warm', name: '따뜻한', filter: 'saturate(150%) contrast(110%) brightness(105%)', isDefault: true },
+    { id: 'cool', name: '시원한', filter: 'saturate(80%) hue-rotate(15deg) brightness(105%)', isDefault: true },
     { id: 'dramatic', name: '드라마틱', filter: 'contrast(150%) brightness(90%)', isDefault: true },
+    { id: 'fade', name: '페이드', filter: 'contrast(85%) brightness(110%) saturate(80%)', isDefault: true },
   ];
 
   // 전체 필터 목록 (기본 + 커스텀)
