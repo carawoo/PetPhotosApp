@@ -1039,8 +1039,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#FF3366',
     overflow: 'hidden',
   },
   avatarImage: {
