@@ -388,7 +388,9 @@ export default function CameraScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true, // 여러 장 선택 가능
-        selectionLimit: MAX_PHOTOS, // 최대 5장
+        selectionLimit: MAX_PHOTOS,    // 최대 5장
+        allowsEditing: true,            // 편집 가능
+        aspect: [1, 1],                 // 정사각형
         quality: 1,
       });
 
@@ -460,8 +462,9 @@ export default function CameraScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 1, // 최고 화질
+        allowsEditing: true,  // 편집 가능
+        aspect: [1, 1],       // 정사각형
+        quality: 1,           // 최고 화질
         exif: false,
       });
 

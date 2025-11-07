@@ -64,8 +64,9 @@ export default function FloatingActionButton() {
     // 디바이스 네이티브 카메라 사용 (고해상도)
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 1, // 최고 화질
+      allowsEditing: true,  // 편집 가능
+      aspect: [1, 1],       // 정사각형
+      quality: 1,           // 최고 화질
       exif: false,
     });
 
@@ -80,8 +81,9 @@ export default function FloatingActionButton() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 1, // 최고 화질
+      allowsEditing: true,  // 편집 가능
+      aspect: [1, 1],       // 정사각형
+      quality: 1,           // 최고 화질
       exif: false,
     });
 
