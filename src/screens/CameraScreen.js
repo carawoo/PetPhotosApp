@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,20 +16,38 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { usePost } from '../contexts/PostContext';
 import { compressImage } from '../utils/imageCompression';
+import ImageEditorScreen from '../components/ImageEditorScreen';
 
 export default function CameraScreen() {
   const [capturedPhotos, setCapturedPhotos] = useState([]); // 여러 장 지원
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0); // 현재 보고 있는 사진
   const [showPostForm, setShowPostForm] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [tempImageUri, setTempImageUri] = useState(null);
   const [petName, setPetName] = useState('');
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const MAX_PHOTOS = 5; // 최대 5장
   const [selectedFilter, setSelectedFilter] = useState('normal');
   const [customFilters, setCustomFilters] = useState([]);
+
+  // 웹 카메라 관련 상태
+  const videoRef = useRef(null);
+  const [webStream, setWebStream] = useState(null);
+  const [webCameraReady, setWebCameraReady] = useState(false);
+  const [webFacingMode, setWebFacingMode] = useState('environment');
+  const [brightness, setBrightness] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [showCustomFilterEditor, setShowCustomFilterEditor] = useState(false);
+  const [activeSlider, setActiveSlider] = useState('brightness');
+  const [filterName, setFilterName] = useState('');
+  const [showFilterNameInput, setShowFilterNameInput] = useState(false);
+
   const { currentUser } = useAuth();
   const { addPost } = usePost();
 
@@ -386,10 +404,8 @@ export default function CameraScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsMultipleSelection: true, // 여러 장 선택 가능
-        selectionLimit: MAX_PHOTOS,    // 최대 5장
-        allowsEditing: true,            // 편집 가능
-        aspect: [1, 1],                 // 정사각형
+        allowsMultipleSelection: false, // 한 장만 (편집 화면 때문에)
+        allowsEditing: false,            // 편집은 우리 화면에서
         quality: 1,
       });
 
@@ -461,16 +477,14 @@ export default function CameraScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,  // 편집 가능
-        aspect: [1, 1],       // 정사각형
-        quality: 1,           // 최고 화질
+        allowsEditing: false,  // 편집은 우리 화면에서
+        quality: 1,            // 최고 화질
         exif: false,
       });
 
       if (!result.canceled && result.assets[0]) {
-        setCapturedPhotos([result.assets[0]]); // 배열로 저장
-        setCurrentPhotoIndex(0);
-        setShowPostForm(true);
+        setTempImageUri(result.assets[0].uri);
+        setEditorVisible(true); // 편집 화면 열기
       }
     } catch (error) {
       console.error('사진 촬영 오류:', error);
@@ -480,6 +494,18 @@ export default function CameraScreen() {
         Alert.alert('오류', '사진을 촬영할 수 없습니다.');
       }
     }
+  };
+
+  const handleEditorConfirm = (editedData) => {
+    setCapturedPhotos([editedData]); // 편집된 데이터 저장
+    setCurrentPhotoIndex(0);
+    setEditorVisible(false);
+    setShowPostForm(true);
+  };
+
+  const handleEditorCancel = () => {
+    setEditorVisible(false);
+    setTempImageUri(null);
   };
 
   const handlePost = async () => {
@@ -590,6 +616,18 @@ export default function CameraScreen() {
     }
   };
 
+  // 이미지 편집 화면
+  if (editorVisible && tempImageUri) {
+    return (
+      <ImageEditorScreen
+        visible={editorVisible}
+        imageUri={tempImageUri}
+        onConfirm={handleEditorConfirm}
+        onCancel={handleEditorCancel}
+      />
+    );
+  }
+
   if (showPostForm && capturedPhotos.length > 0) {
     return (
       <KeyboardAvoidingView
@@ -608,7 +646,20 @@ export default function CameraScreen() {
 
           {/* 이미지 슬라이드 미리보기 */}
           <View style={styles.imageSliderContainer}>
-            <Image source={{ uri: capturedPhotos[currentPhotoIndex].uri }} style={styles.formImage} />
+            {capturedPhotos[currentPhotoIndex].filter && Platform.OS === 'web' ? (
+              React.createElement('img', {
+                src: capturedPhotos[currentPhotoIndex].uri,
+                alt: 'Preview',
+                style: {
+                  width: '100%',
+                  height: 300,
+                  objectFit: 'cover',
+                  filter: capturedPhotos[currentPhotoIndex].filter,
+                },
+              })
+            ) : (
+              <Image source={{ uri: capturedPhotos[currentPhotoIndex].uri }} style={styles.formImage} />
+            )}
 
             {/* 여러 장인 경우 네비게이션 표시 */}
             {capturedPhotos.length > 1 && (
@@ -1022,7 +1073,20 @@ export default function CameraScreen() {
     );
   }
 
-  // 모바일: 버튼으로 네이티브 카메라 열기
+  // 모바일: 화면이 포커스될 때 자동으로 네이티브 카메라 열기
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'web' && !showPostForm && !editorVisible && capturedPhotos.length === 0) {
+        // 화면이 포커스되면 자동으로 카메라 열기
+        const timer = setTimeout(() => {
+          takePicture();
+        }, 300);
+
+        return () => clearTimeout(timer);
+      }
+    }, [showPostForm, editorVisible, capturedPhotos.length])
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.cameraPlaceholder}>
@@ -1042,9 +1106,9 @@ export default function CameraScreen() {
             <View style={styles.captureButtonInner} />
           </TouchableOpacity>
 
-          <View style={styles.placeholderButton}>
+          <TouchableOpacity style={styles.placeholderButton} onPress={takePicture}>
             <Text style={styles.buttonLabel}>촬영</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </View>

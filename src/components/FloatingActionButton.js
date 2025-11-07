@@ -16,11 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { usePost } from '../contexts/PostContext';
 import { useAuth } from '../contexts/AuthContext';
+import ImageEditorScreen from './ImageEditorScreen';
 
 export default function FloatingActionButton() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [editedImageData, setEditedImageData] = useState(null);
   const [petInputText, setPetInputText] = useState('');
   const [localPets, setLocalPets] = useState([]);
   const [selectedPet, setSelectedPet] = useState('');
@@ -64,15 +67,14 @@ export default function FloatingActionButton() {
     // 디바이스 네이티브 카메라 사용 (고해상도)
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,  // 편집 가능
-      aspect: [1, 1],       // 정사각형
-      quality: 1,           // 최고 화질
+      allowsEditing: false,  // 편집은 우리 화면에서
+      quality: 1,            // 최고 화질
       exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
       setSelectedImage(result.assets[0].uri);
-      setUploadModalVisible(true);
+      setEditorVisible(true); // 편집 화면 열기
     }
   };
 
@@ -81,16 +83,26 @@ export default function FloatingActionButton() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,  // 편집 가능
-      aspect: [1, 1],       // 정사각형
-      quality: 1,           // 최고 화질
+      allowsEditing: false,  // 편집은 우리 화면에서
+      quality: 1,            // 최고 화질
       exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
       setSelectedImage(result.assets[0].uri);
-      setUploadModalVisible(true);
+      setEditorVisible(true); // 편집 화면 열기
     }
+  };
+
+  const handleEditorConfirm = (editedData) => {
+    setEditedImageData(editedData);
+    setEditorVisible(false);
+    setUploadModalVisible(true);
+  };
+
+  const handleEditorCancel = () => {
+    setEditorVisible(false);
+    setSelectedImage(null);
   };
 
 
@@ -190,6 +202,16 @@ export default function FloatingActionButton() {
 
   return (
     <>
+      {/* 이미지 편집 화면 */}
+      {selectedImage && (
+        <ImageEditorScreen
+          visible={editorVisible}
+          imageUri={selectedImage}
+          onConfirm={handleEditorConfirm}
+          onCancel={handleEditorCancel}
+        />
+      )}
+
       {/* 메인 FAB */}
       <TouchableOpacity
         style={styles.fab}
@@ -262,12 +284,25 @@ export default function FloatingActionButton() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {selectedImage && (
-                <Image
-                  source={{ uri: selectedImage }}
-                  style={styles.previewImage}
-                  resizeMode="cover"
-                />
+              {editedImageData && (
+                Platform.OS === 'web' ? (
+                  React.createElement('img', {
+                    src: editedImageData.uri,
+                    alt: 'Preview',
+                    style: {
+                      width: '100%',
+                      height: 300,
+                      objectFit: 'cover',
+                      filter: editedImageData.filter,
+                    },
+                  })
+                ) : (
+                  <Image
+                    source={{ uri: editedImageData.uri }}
+                    style={styles.previewImage}
+                    resizeMode="cover"
+                  />
+                )
               )}
 
               <View style={styles.formContainer}>
