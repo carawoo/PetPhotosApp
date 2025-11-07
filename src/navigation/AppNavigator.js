@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getStateFromPath } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Animated, View, StyleSheet, Platform } from 'react-native';
@@ -64,8 +64,29 @@ export default function AppNavigator() {
     },
   };
 
+  // post/:postId 경로를 처리하기 위한 커스텀 링킹
+  const customLinking = {
+    ...linking,
+    getStateFromPath: (path, options) => {
+      // /post/:postId 경로를 Feed 화면으로 라우팅하고 postId를 전달
+      if (path.startsWith('/post/')) {
+        const postId = path.split('/post/')[1].split('?')[0]; // 쿼리 파라미터 제거
+        return {
+          routes: [
+            {
+              name: 'Feed',
+              params: { postId },
+            },
+          ],
+        };
+      }
+      // 기본 동작: React Navigation의 기본 getStateFromPath 사용
+      return getStateFromPath(path, options);
+    },
+  };
+
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer linking={customLinking}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color }) => {

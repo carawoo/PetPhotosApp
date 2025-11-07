@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -23,11 +23,27 @@ import ImageSlider from '../components/ImageSlider';
 
 const { width } = Dimensions.get('window');
 
-export default function FeedScreen() {
+export default function FeedScreen({ route }) {
   const { posts, loading, toggleLike, addComment, updateComment, deleteComment, deletePost, updatePost } = usePost();
   const { currentUser } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
+
+  // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
+  useEffect(() => {
+    const postId = route?.params?.postId;
+    if (postId && posts.length > 0) {
+      const post = posts.find(p => p.id === postId);
+      if (post) {
+        setSelectedPost(post);
+      } else {
+        console.warn('Post not found:', postId);
+        if (Platform.OS === 'web') {
+          alert('게시물을 찾을 수 없습니다.');
+        }
+      }
+    }
+  }, [route?.params?.postId, posts]);
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
