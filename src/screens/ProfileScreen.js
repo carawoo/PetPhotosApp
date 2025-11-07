@@ -174,12 +174,19 @@ export default function ProfileScreen({ route, navigation }) {
         }
 
         // 프로필 이미지 업데이트
-        const updateResult = updateProfileImage(imageUrl);
+        const updateResult = await updateProfileImage(imageUrl);
         if (updateResult.success) {
           if (Platform.OS === 'web') {
             alert('프로필 이미지가 변경되었습니다!');
           } else {
             Alert.alert('성공', '프로필 이미지가 변경되었습니다!');
+          }
+        } else {
+          console.error('Profile image update failed:', updateResult.error);
+          if (Platform.OS === 'web') {
+            alert(`프로필 이미지 변경에 실패했습니다: ${updateResult.error}`);
+          } else {
+            Alert.alert('오류', `프로필 이미지 변경에 실패했습니다: ${updateResult.error}`);
           }
         }
         setUploading(false);
@@ -353,8 +360,8 @@ export default function ProfileScreen({ route, navigation }) {
     setEditingBio(true);
   };
 
-  const handleBioSave = () => {
-    const result = updateProfileBio(bioText);
+  const handleBioSave = async () => {
+    const result = await updateProfileBio(bioText);
     if (result.success) {
       if (Platform.OS === 'web') {
         alert('프로필 소개글이 업데이트되었습니다!');
