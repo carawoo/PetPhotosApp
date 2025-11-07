@@ -62,31 +62,32 @@ export default function AppNavigator() {
         },
       },
     },
-  };
-
-  // post/:postId 경로를 처리하기 위한 커스텀 링킹
-  const customLinking = {
-    ...linking,
     getStateFromPath: (path, options) => {
-      // /post/:postId 경로를 Feed 화면으로 라우팅하고 postId를 전달
+      console.log('🔍 getStateFromPath called with path:', path);
+
+      // /post/:postId 경로를 Feed 화면으로 라우팅
       if (path.startsWith('/post/')) {
         const postId = path.split('/post/')[1].split('?')[0]; // 쿼리 파라미터 제거
+        console.log('✅ Post route detected, postId:', postId);
         return {
+          index: 0,
           routes: [
-            {
-              name: 'Feed',
-              params: { postId },
-            },
+            { name: 'Feed', params: { postId } },
+            { name: 'Camera' },
+            { name: 'Profile' },
           ],
         };
       }
-      // 기본 동작: React Navigation의 기본 getStateFromPath 사용
-      return getStateFromPath(path, options);
+
+      // 기본 동작: React Navigation의 기본 처리
+      const defaultState = getStateFromPath(path, options);
+      console.log('📍 Default state:', defaultState);
+      return defaultState;
     },
   };
 
   return (
-    <NavigationContainer linking={customLinking}>
+    <NavigationContainer linking={linking}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color }) => {
