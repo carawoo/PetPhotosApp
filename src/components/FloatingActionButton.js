@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { usePost } from '../contexts/PostContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function FloatingActionButton() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,6 +29,7 @@ export default function FloatingActionButton() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = React.useRef(null);
   const { addPost } = usePost();
+  const { currentUser } = useAuth();
 
   const openCamera = async () => {
     setMenuOpen(false);
@@ -271,14 +273,61 @@ export default function FloatingActionButton() {
             )}
 
             <View style={styles.formContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="반려동물 이름 *"
-                value={petName}
-                onChangeText={setPetName}
-                onStartShouldSetResponder={() => true}
-                editable={!uploading}
-              />
+              {/* 반려동물 선택 (칩 형태) */}
+              <View style={styles.petSelectionContainer}>
+                <Text style={styles.petSelectionLabel}>반려동물 *</Text>
+                <View style={styles.petChipsContainer}>
+                  {currentUser?.pets && currentUser.pets.length > 0 ? (
+                    currentUser.pets.map((pet, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.petChipButton,
+                          petName === pet && styles.petChipButtonActive
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={styles.petChipButtonContent}
+                          onPress={() => setPetName(pet)}
+                          activeOpacity={0.7}
+                          disabled={uploading}
+                        >
+                          <Ionicons
+                            name="paw"
+                            size={16}
+                            color={petName === pet ? '#fff' : '#FF3366'}
+                          />
+                          <Text style={[
+                            styles.petChipButtonText,
+                            petName === pet && styles.petChipButtonTextActive
+                          ]}>
+                            {pet}
+                          </Text>
+                        </TouchableOpacity>
+                        {petName === pet && (
+                          <TouchableOpacity
+                            style={styles.petChipRemoveButton}
+                            onPress={() => setPetName('')}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            disabled={uploading}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={20}
+                              color="#fff"
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noPetsText}>
+                      설정에서 반려동물을 등록해주세요
+                    </Text>
+                  )}
+                </View>
+              </View>
+
               <TextInput
                 style={[styles.input, styles.descriptionInput]}
                 placeholder="설명을 입력하세요..."
@@ -458,6 +507,57 @@ const styles = StyleSheet.create({
   descriptionInput: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  petSelectionContainer: {
+    marginBottom: 20,
+  },
+  petSelectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  petChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  petChipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingLeft: 16,
+    paddingRight: 16,
+    borderWidth: 2,
+    borderColor: '#FFE8F0',
+  },
+  petChipButtonActive: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  petChipButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petChipButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  petChipButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  petChipRemoveButton: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  noPetsText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontStyle: 'italic',
   },
   uploadButton: {
     backgroundColor: '#FF6B6B',
