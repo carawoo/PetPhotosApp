@@ -49,6 +49,7 @@ export default function CameraScreen() {
   const [activeSlider, setActiveSlider] = useState('brightness');
   const [filterName, setFilterName] = useState('');
   const [showFilterNameInput, setShowFilterNameInput] = useState(false);
+  const [zoom, setZoom] = useState(1); // 줌 레벨 (1.0 ~ 3.0)
 
   const { currentUser } = useAuth();
   const { addPost } = usePost();
@@ -314,6 +315,14 @@ export default function CameraScreen() {
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d', { alpha: false });
 
+      // 줌 적용
+      if (zoom !== 1) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      }
+
       // 필터 적용
       const currentFilterStyle = filters.find(f => f.id === selectedFilter)?.filter || 'none';
       if (currentFilterStyle !== 'none') {
@@ -325,18 +334,24 @@ export default function CameraScreen() {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(video, 0, 0);
 
+      if (zoom !== 1) {
+        ctx.restore();
+      }
+
       // 최고 품질로 저장 (0.98)
       canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        setCapturedPhotos([{ uri: url }]); // 배열로 저장
-        setCurrentPhotoIndex(0);
-        setShowPostForm(true);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setTempImageUri(reader.result);
+          setEditorVisible(true);
 
-        // 카메라 스트림 정지
-        if (webStream) {
-          webStream.getTracks().forEach(track => track.stop());
-          setWebStream(null);
-        }
+          // 카메라 스트림 정지
+          if (webStream) {
+            webStream.getTracks().forEach(track => track.stop());
+            setWebStream(null);
+          }
+        };
+        reader.readAsDataURL(blob);
       }, 'image/jpeg', 0.98);
     }
   };
@@ -469,51 +484,26 @@ export default function CameraScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // 여러 장 처리
-        const processedPhotos = [];
+        let imageUri = result.assets[0].uri;
 
-        for (let asset of result.assets.slice(0, MAX_PHOTOS)) {
-          let imageUri = asset.uri;
-
-          // 웹에서 선택한 필터 적용
-          if (Platform.OS === 'web') {
-            // Base64로 변환 필요 시
-            if (!imageUri.startsWith('data:')) {
-              try {
-                const response = await fetch(imageUri);
-                const blob = await response.blob();
-                imageUri = await new Promise((resolve) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result);
-                  reader.readAsDataURL(blob);
-                });
-              } catch (e) {
-                console.error('Image conversion failed:', e);
-              }
-            }
-
-            // 필터 적용
-            let filterStyle = 'none';
-            if (selectedFilter === 'custom') {
-              filterStyle = `brightness(${brightness}%) saturate(${saturation}%) contrast(${contrast}%)`;
-            } else {
-              const currentFilter = filters.find(f => f.id === selectedFilter);
-              if (currentFilter) {
-                filterStyle = currentFilter.filter;
-              }
-            }
-
-            if (filterStyle !== 'none') {
-              imageUri = await applyFilterToImage(imageUri, filterStyle);
-            }
+        // 웹에서 Base64로 변환
+        if (Platform.OS === 'web' && !imageUri.startsWith('data:')) {
+          try {
+            const response = await fetch(imageUri);
+            const blob = await response.blob();
+            imageUri = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            console.error('Image conversion failed:', e);
           }
-
-          processedPhotos.push({ uri: imageUri });
         }
 
-        setCapturedPhotos(processedPhotos);
-        setCurrentPhotoIndex(0);
-        setShowPostForm(true);
+        // 편집 화면으로 이동
+        setTempImageUri(imageUri);
+        setEditorVisible(true);
 
         // 웹 카메라 스트림 정지
         if (Platform.OS === 'web' && webStream) {
@@ -900,7 +890,8 @@ export default function CameraScreen() {
         objectFit: 'cover',
         backgroundColor: '#000',
         filter: currentFilterStyle,
-        transition: showCustomFilterEditor ? 'filter 0.1s ease' : 'filter 0.3s ease',
+        transition: showCustomFilterEditor ? 'filter 0.1s ease' : 'filter 0.3s ease, transform 0.2s ease',
+        transform: `scale(${zoom})`,
       },
     });
 
@@ -975,6 +966,41 @@ export default function CameraScreen() {
             </TouchableOpacity>
           )}
         </ScrollView>
+
+        {/* 줌 컨트롤 */}
+        <View style={styles.zoomControlContainer}>
+          <TouchableOpacity
+            style={styles.zoomButton}
+            onPress={() => setZoom(Math.max(1, zoom - 0.5))}
+          >
+            <Ionicons name="remove" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.zoomSliderContainer}>
+            {Platform.OS === 'web' && React.createElement('input', {
+              type: 'range',
+              min: '1',
+              max: '3',
+              step: '0.1',
+              value: zoom,
+              onChange: (e) => setZoom(parseFloat(e.target.value)),
+              style: {
+                width: '100%',
+                height: 4,
+                appearance: 'none',
+                background: 'rgba(255, 255, 255, 0.3)',
+                borderRadius: 2,
+                outline: 'none',
+              },
+            })}
+            <Text style={styles.zoomText}>{zoom.toFixed(1)}x</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.zoomButton}
+            onPress={() => setZoom(Math.min(3, zoom + 0.5))}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
         {/* 하단 컨트롤 */}
         <View style={styles.webCameraControls}>
@@ -1223,6 +1249,38 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: '100%',
+  },
+  zoomControlContainer: {
+    position: 'absolute',
+    bottom: 200,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 24,
+  },
+  zoomButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomSliderContainer: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  zoomText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   webCameraControls: {
     position: 'absolute',
