@@ -16,13 +16,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { usePost } from '../contexts/PostContext';
 import { compressImage } from '../utils/imageCompression';
 import ImageEditorScreen from '../components/ImageEditorScreen';
+import Toast from '../components/Toast';
 
 export default function CameraScreen() {
+  const navigation = useNavigation();
   const [capturedPhotos, setCapturedPhotos] = useState([]); // 여러 장 지원
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0); // 현재 보고 있는 사진
   const [showPostForm, setShowPostForm] = useState(false);
@@ -50,6 +52,11 @@ export default function CameraScreen() {
   const [filterName, setFilterName] = useState('');
   const [showFilterNameInput, setShowFilterNameInput] = useState(false);
   const [zoom, setZoom] = useState(1); // 줌 레벨 (1.0 ~ 3.0)
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   const { currentUser } = useAuth();
   const { addPost } = usePost();
@@ -130,6 +137,14 @@ export default function CameraScreen() {
         >
           <Text style={styles.loginRequiredButtonText}>로그인하기</Text>
         </TouchableOpacity>
+
+        {/* Toast 알림 */}
+        <Toast
+          visible={toastVisible}
+          message={toastMessage}
+          type={toastType}
+          onHide={() => setToastVisible(false)}
+        />
       </View>
     );
   }
@@ -641,23 +656,33 @@ export default function CameraScreen() {
       setSelectedFilter('normal'); // 필터 초기화
       setUploading(false);
 
+      // 토스트 표시 및 피드로 이동
+      setToastMessage('게시물이 등록되었습니다!');
+      setToastType('success');
+      setToastVisible(true);
+
+      // 피드로 이동 (약간의 딜레이 후)
+      setTimeout(() => {
+        navigation.navigate('Feed', {
+          refresh: true,
+          scrollToTop: true
+        });
+      }, 500);
+
+      // 웹에서 카메라 다시 시작
       if (Platform.OS === 'web') {
-        alert('게시물이 등록되었습니다!');
-        // 카메라 다시 시작
         setTimeout(() => {
           startWebCamera();
         }, 100);
-      } else {
-        Alert.alert('성공', '게시물이 등록되었습니다!');
       }
     } catch (error) {
       console.error('게시물 등록 오류:', error);
       setUploading(false);
-      if (Platform.OS === 'web') {
-        alert('게시물 등록에 실패했습니다.');
-      } else {
-        Alert.alert('오류', '게시물 등록에 실패했습니다.');
-      }
+
+      // 에러 토스트 표시
+      setToastMessage('게시물 등록에 실패했습니다.');
+      setToastType('error');
+      setToastVisible(true);
     }
   };
 
@@ -714,10 +739,10 @@ export default function CameraScreen() {
                 src: capturedPhotos[currentPhotoIndex].uri,
                 alt: 'Preview',
                 style: {
-                  width: '100%',
-                  maxWidth: 450,
-                  maxHeight: 450,
-                  aspectRatio: 1,
+                  display: 'block',
+                  width: '450px',
+                  height: '450px',
+                  maxWidth: '100%',
                   objectFit: 'contain',
                   backgroundColor: '#F5F5F7',
                   margin: '0 auto',
@@ -873,6 +898,14 @@ export default function CameraScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Toast 알림 */}
+        <Toast
+          visible={toastVisible}
+          message={toastMessage}
+          type={toastType}
+          onHide={() => setToastVisible(false)}
+        />
       </KeyboardAvoidingView>
     );
   }
@@ -1196,6 +1229,14 @@ export default function CameraScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Toast 알림 */}
+        <Toast
+          visible={toastVisible}
+          message={toastMessage}
+          type={toastType}
+          onHide={() => setToastVisible(false)}
+        />
       </View>
     );
   }
@@ -1238,6 +1279,14 @@ export default function CameraScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Toast 알림 */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 }

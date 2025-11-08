@@ -47,6 +47,22 @@ export default function FeedScreen({ route, navigation }) {
   const randomizedPosts = useMemo(() => {
     if (!posts || posts.length === 0) return [];
 
+    // 새 게시물 등록 후 refresh 파라미터가 있으면 최신순으로 정렬
+    if (route?.params?.refresh) {
+      const sorted = [...posts].sort((a, b) => {
+        const dateA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
+        const dateB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        return dateB - dateA; // 최신순
+      });
+      setPostOrder(sorted);
+      if (Platform.OS === 'web') {
+        sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id }))));
+      }
+      // refresh 파라미터 제거
+      navigation.setParams({ refresh: undefined, scrollToTop: undefined });
+      return sorted;
+    }
+
     // 기존 순서가 있고, 게시물 ID가 동일하면 기존 순서 유지
     if (postOrder && postOrder.length === posts.length) {
       const currentIds = posts.map(p => p.id).sort().join(',');
@@ -94,7 +110,7 @@ export default function FeedScreen({ route, navigation }) {
     }
 
     return sorted;
-  }, [posts, postOrder]);
+  }, [posts, postOrder, route?.params?.refresh]);
 
   // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
   useEffect(() => {
