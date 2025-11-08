@@ -642,10 +642,9 @@ export default function FeedScreen({ route, navigation }) {
               style={styles.viewModeButton}
             >
               <Ionicons
-                name="reorder-three-outline"
+                name={viewMode === 'list' ? 'copy-outline' : 'menu-outline'}
                 size={28}
                 color="#333"
-                style={viewMode === 'list' ? { transform: [{ rotate: '90deg' }] } : {}}
               />
             </TouchableOpacity>
           </View>
