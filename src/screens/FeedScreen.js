@@ -63,47 +63,40 @@ export default function FeedScreen({ route, navigation }) {
     console.log('📊 Posts length changed:', posts?.length, 'previous:', prevPostsLengthRef.current, 'needsRefresh:', needsRefreshRef.current);
 
     if (posts && posts.length > prevPostsLengthRef.current && needsRefreshRef.current) {
-      console.log('🆕 New post detected! Triggering latest-first sort');
-      // 강제로 최신순 정렬을 트리거하기 위해 refresh 플래그를 다시 설정
-      navigation.setParams({ refresh: true });
+      console.log('🆕 New post detected! Forcing latest-first sort');
+      // 새 게시물이 추가되었으므로 최신순으로 정렬
+      const sorted = [...posts].sort((a, b) => {
+        const dateA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
+        const dateB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        return dateB - dateA; // 최신순
+      });
+      console.log('📊 Force sorted posts:', sorted.length, 'first post:', sorted[0]?.description?.substring(0, 20));
+      setPostOrder(sorted);
+      if (Platform.OS === 'web') {
+        sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id }))));
+      }
       needsRefreshRef.current = false;
     }
 
     prevPostsLengthRef.current = posts?.length || 0;
-  }, [posts?.length]);
+  }, [posts]);
 
   // refresh 파라미터가 설정되면 needsRefreshRef를 true로 설정
   useEffect(() => {
     if (route?.params?.refresh) {
       console.log('🔄 Setting needsRefreshRef to true');
       needsRefreshRef.current = true;
+      // refresh 파라미터 즉시 제거 (무한 루프 방지)
+      setTimeout(() => {
+        navigation.setParams({ refresh: undefined, scrollToTop: undefined });
+      }, 100);
     }
   }, [route?.params?.refresh]);
 
   // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
   const randomizedPosts = useMemo(() => {
-    console.log('🔄 randomizedPosts useMemo called, posts.length:', posts?.length, 'refresh:', route?.params?.refresh);
+    console.log('🔄 randomizedPosts useMemo called, posts.length:', posts?.length, 'postOrder exists:', !!postOrder);
     if (!posts || posts.length === 0) return [];
-
-    // 새 게시물 등록 후 refresh 파라미터가 있으면 최신순으로 정렬
-    if (route?.params?.refresh) {
-      console.log('✨ Sorting posts by latest (refresh mode)');
-      const sorted = [...posts].sort((a, b) => {
-        const dateA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
-        const dateB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
-        return dateB - dateA; // 최신순
-      });
-      console.log('📊 Sorted posts:', sorted.length, 'first post:', sorted[0]?.description?.substring(0, 20));
-      setPostOrder(sorted);
-      if (Platform.OS === 'web') {
-        sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id }))));
-      }
-      // refresh 파라미터 제거는 약간 지연
-      setTimeout(() => {
-        navigation.setParams({ refresh: undefined, scrollToTop: undefined });
-      }, 500);
-      return sorted;
-    }
 
     // 기존 순서가 있고, 게시물 ID가 동일하면 기존 순서 유지
     if (postOrder && postOrder.length === posts.length) {
@@ -152,7 +145,7 @@ export default function FeedScreen({ route, navigation }) {
     }
 
     return sorted;
-  }, [posts, postOrder, route?.params?.refresh]);
+  }, [posts, postOrder]);
 
   // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
   useEffect(() => {
