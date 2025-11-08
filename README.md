@@ -68,13 +68,14 @@ npx expo export --platform web
 
 ## 배포
 
-자세한 배포 가이드는 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고하세요.
+현재 **Vercel**을 사용하여 배포되고 있습니다.
 
-**추천 무료 배포 옵션:**
-- Netlify ⭐ (가장 쉬움)
-- Vercel
-- GitHub Pages
-- Firebase Hosting
+```bash
+# Vercel에 배포
+npx vercel --prod
+```
+
+**라이브 사이트:** https://peto.real-e.space
 
 ## 프로젝트 구조
 
