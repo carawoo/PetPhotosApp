@@ -8,6 +8,7 @@ export default function Toast({ visible, message, onHide, type = 'success', dura
 
   useEffect(() => {
     if (visible) {
+      console.log('🎨 Toast visible:', message, 'duration:', duration);
       // Show animation
       Animated.parallel([
         Animated.timing(opacity, {
@@ -24,6 +25,7 @@ export default function Toast({ visible, message, onHide, type = 'success', dura
 
       // Auto hide
       const timer = setTimeout(() => {
+        console.log('⏱️ Toast hiding after', duration, 'ms');
         hideToast();
       }, duration);
 

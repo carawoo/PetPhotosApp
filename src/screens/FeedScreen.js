@@ -137,6 +137,7 @@ export default function FeedScreen({ route, navigation }) {
   // 토스트 표시 (새 게시물 등록 후)
   useEffect(() => {
     if (route?.params?.showToast && route?.params?.toastMessage) {
+      console.log('🔔 Showing toast:', route.params.toastMessage);
       setToastMessage(route.params.toastMessage);
       setToastType('success');
       setToastVisible(true);
@@ -1637,6 +1638,7 @@ export default function FeedScreen({ route, navigation }) {
         visible={toastVisible}
         message={toastMessage}
         type={toastType}
+        duration={2000}
         onHide={() => setToastVisible(false)}
       />
     </View>
