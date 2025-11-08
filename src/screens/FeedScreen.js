@@ -765,57 +765,54 @@ export default function FeedScreen({ route, navigation }) {
             </ScrollView>
 
             {/* Floating Action Buttons */}
-            {randomizedPosts[currentCardIndex] && (
-              <View style={styles.cardFloatingActions}>
-                <TouchableOpacity
-                  style={styles.cardActionButton}
-                  onPress={handlePreviousCard}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="chevron-back" size={32} color="#333" />
-                </TouchableOpacity>
+            {randomizedPosts[currentCardIndex] && (() => {
+              const currentItem = randomizedPosts[currentCardIndex];
+              const isLiked = !currentUser
+                ? (Platform.OS === 'web' && typeof localStorage !== 'undefined'
+                    ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(currentItem.id)
+                    : false)
+                : (currentItem.likedBy?.includes(currentUser.id) || false);
 
-                <TouchableOpacity
-                  style={[styles.cardActionButton, styles.cardLikeButton]}
-                  onPress={handleCardLike}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={
-                      !currentUser
-                        ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(randomizedPosts[currentCardIndex].id)
-                        : randomizedPosts[currentCardIndex].likedBy?.includes(currentUser.id)
-                      ? "heart"
-                      : "heart-outline"
-                    }
-                    size={36}
-                    color={
-                      !currentUser
-                        ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(randomizedPosts[currentCardIndex].id)
-                        : randomizedPosts[currentCardIndex].likedBy?.includes(currentUser.id)
-                      ? "#FF3366"
-                      : "#333"
-                    }
-                  />
-                </TouchableOpacity>
+              return (
+                <View style={styles.cardFloatingActions}>
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
+                    onPress={handlePreviousCard}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chevron-back" size={32} color="#333" />
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.cardActionButton}
-                  onPress={() => handleShare(randomizedPosts[currentCardIndex])}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="share-outline" size={32} color="#333" />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.cardActionButton, styles.cardLikeButton]}
+                    onPress={handleCardLike}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={isLiked ? "heart" : "heart-outline"}
+                      size={36}
+                      color={isLiked ? "#FF3366" : "#333"}
+                    />
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.cardActionButton}
-                  onPress={handleNextCard}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="chevron-forward" size={32} color="#333" />
-                </TouchableOpacity>
-              </View>
-            )}
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
+                    onPress={() => handleShare(currentItem)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="share-outline" size={32} color="#333" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
+                    onPress={handleNextCard}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chevron-forward" size={32} color="#333" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
           </View>
         ) : (
           <View style={styles.emptyContainer}>
