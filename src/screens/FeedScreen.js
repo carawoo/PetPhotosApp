@@ -757,7 +757,28 @@ export default function FeedScreen({ route, navigation }) {
               })()}
             </ScrollView>
 
-            {/* Floating Action Buttons */}
+            {/* Navigation Buttons - Left and Right */}
+            {randomizedPosts[currentCardIndex] && (
+              <>
+                <TouchableOpacity
+                  style={styles.cardNavButtonLeft}
+                  onPress={handlePreviousCard}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={32} color="#333" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cardNavButtonRight}
+                  onPress={handleNextCard}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-forward" size={32} color="#333" />
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Bottom Action Buttons */}
             {randomizedPosts[currentCardIndex] && (() => {
               const currentItem = randomizedPosts[currentCardIndex];
               const isLiked = !currentUser
@@ -768,14 +789,6 @@ export default function FeedScreen({ route, navigation }) {
 
               return (
                 <View style={styles.cardFloatingActions}>
-                  <TouchableOpacity
-                    style={styles.cardActionButton}
-                    onPress={handlePreviousCard}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="chevron-back" size={32} color="#333" />
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[styles.cardActionButton, styles.cardLikeButton]}
                     onPress={handleCardLike}
@@ -794,14 +807,6 @@ export default function FeedScreen({ route, navigation }) {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="share-outline" size={32} color="#333" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.cardActionButton}
-                    onPress={handleNextCard}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="chevron-forward" size={32} color="#333" />
                   </TouchableOpacity>
                 </View>
               );
@@ -2321,6 +2326,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#8E8E93',
+  },
+  cardNavButtonLeft: {
+    position: 'absolute',
+    left: 16,
+    top: '50%',
+    marginTop: -30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardNavButtonRight: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    marginTop: -30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardFloatingActions: {
     position: 'absolute',
