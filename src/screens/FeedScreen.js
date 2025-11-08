@@ -675,7 +675,11 @@ export default function FeedScreen({ route, navigation }) {
       ) : (
         /* Card View */
         randomizedPosts.length > 0 ? (
-          <View style={styles.cardContainer}>
+          <ScrollView
+            style={styles.cardScrollView}
+            contentContainerStyle={styles.cardScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             {(() => {
               const item = randomizedPosts[currentCardIndex];
               if (!item || !item.id || !item.imageUrl || !item.author) return null;
@@ -792,7 +796,7 @@ export default function FeedScreen({ route, navigation }) {
                 </View>
               );
             })()}
-          </View>
+          </ScrollView>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="images-outline" size={64} color="#ccc" />
@@ -2220,13 +2224,17 @@ const styles = StyleSheet.create({
   viewModeButton: {
     padding: 4,
   },
-  cardContainer: {
+  cardScrollView: {
     flex: 1,
+    backgroundColor: '#FAFBFC',
+  },
+  cardScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 120,
+    paddingVertical: 20,
+    minHeight: '100%',
   },
   cardContent: {
     width: '100%',
@@ -2239,6 +2247,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
+    marginBottom: 20,
   },
   cardHeader: {
     flexDirection: 'row',
