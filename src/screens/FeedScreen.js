@@ -687,7 +687,7 @@ export default function FeedScreen({ route, navigation }) {
           renderItem={renderPost}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="images-outline" size={64} color="#ccc" />
@@ -1622,9 +1622,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 5,
+    zIndex: 10,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -1640,7 +1641,7 @@ const styles = StyleSheet.create({
   postContainer: {
     marginBottom: 12,
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     overflow: 'hidden',
@@ -2471,7 +2472,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -2488,7 +2489,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -2520,7 +2521,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
-    opacity: 0.65,
+    opacity: 0.8,
   },
   cardLikeButton: {
     width: 64,
