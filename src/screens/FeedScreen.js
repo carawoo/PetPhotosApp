@@ -2363,7 +2363,7 @@ const styles = StyleSheet.create({
   },
   cardFloatingActions: {
     position: 'absolute',
-    bottom: 88,
+    bottom: 100,
     left: 16,
     flexDirection: 'row',
     alignItems: 'center',
