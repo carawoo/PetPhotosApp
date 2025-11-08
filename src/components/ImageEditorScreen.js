@@ -80,7 +80,11 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
     }
   };
 
-  // PanResponder for dragging image in crop mode
+  // 웹에서 마우스 드래그를 위한 상태
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  // PanResponder for dragging image in crop mode (모바일용)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => cropMode,
@@ -102,6 +106,45 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
       },
     })
   ).current;
+
+  // 웹용 마우스 이벤트 핸들러
+  const handleMouseDown = (e) => {
+    if (!cropMode || Platform.OS !== 'web') return;
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - panX._value,
+      y: e.clientY - panY._value,
+    };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !cropMode || Platform.OS !== 'web') return;
+    const newX = e.clientX - dragStart.current.x;
+    const newY = e.clientY - dragStart.current.y;
+    panX.setValue(newX);
+    panY.setValue(newY);
+  };
+
+  const handleMouseUp = () => {
+    if (Platform.OS !== 'web') return;
+    setIsDragging(false);
+  };
+
+  // 웹에서 전역 마우스 이벤트 등록
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !cropMode) return;
+
+    const handleGlobalMouseMove = (e) => handleMouseMove(e);
+    const handleGlobalMouseUp = () => handleMouseUp();
+
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, cropMode]);
 
   const loadCustomFilters = async () => {
     try {
@@ -396,11 +439,14 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
               React.createElement('img', {
                 src: croppedUri || imageUri,
                 alt: 'Preview',
+                onMouseDown: handleMouseDown,
                 style: {
                   width: '100%',
                   height: '100%',
                   objectFit: 'contain',
                   filter: cropMode ? 'none' : getFilterStyle(),
+                  cursor: cropMode ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  userSelect: 'none',
                 },
               })
             ) : (
