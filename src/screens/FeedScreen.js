@@ -2330,7 +2330,7 @@ const styles = StyleSheet.create({
   cardNavButtonLeft: {
     position: 'absolute',
     left: 16,
-    top: '50%',
+    top: '45%',
     marginTop: -25,
     width: 50,
     height: 50,
@@ -2347,7 +2347,7 @@ const styles = StyleSheet.create({
   cardNavButtonRight: {
     position: 'absolute',
     right: 16,
-    top: '50%',
+    top: '45%',
     marginTop: -25,
     width: 50,
     height: 50,
