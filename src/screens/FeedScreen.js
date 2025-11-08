@@ -40,6 +40,11 @@ export default function FeedScreen({ route, navigation }) {
   // Refs for scrolling
   const flatListRef = useRef(null);
   const scrollViewRef = useRef(null);
+
+  // Track previous posts length to detect new posts
+  const prevPostsLengthRef = useRef(posts.length);
+  const needsRefreshRef = useRef(false);
+
   const [showCommentSheet, setShowCommentSheet] = useState(false);
   const [commentSheetPost, setCommentSheetPost] = useState(null);
 
@@ -53,23 +58,50 @@ export default function FeedScreen({ route, navigation }) {
     return null;
   });
 
+  // 새 게시물이 추가되었을 때 감지하여 최신순으로 재정렬
+  useEffect(() => {
+    console.log('📊 Posts length changed:', posts?.length, 'previous:', prevPostsLengthRef.current, 'needsRefresh:', needsRefreshRef.current);
+
+    if (posts && posts.length > prevPostsLengthRef.current && needsRefreshRef.current) {
+      console.log('🆕 New post detected! Triggering latest-first sort');
+      // 강제로 최신순 정렬을 트리거하기 위해 refresh 플래그를 다시 설정
+      navigation.setParams({ refresh: true });
+      needsRefreshRef.current = false;
+    }
+
+    prevPostsLengthRef.current = posts?.length || 0;
+  }, [posts?.length]);
+
+  // refresh 파라미터가 설정되면 needsRefreshRef를 true로 설정
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      console.log('🔄 Setting needsRefreshRef to true');
+      needsRefreshRef.current = true;
+    }
+  }, [route?.params?.refresh]);
+
   // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
   const randomizedPosts = useMemo(() => {
+    console.log('🔄 randomizedPosts useMemo called, posts.length:', posts?.length, 'refresh:', route?.params?.refresh);
     if (!posts || posts.length === 0) return [];
 
     // 새 게시물 등록 후 refresh 파라미터가 있으면 최신순으로 정렬
     if (route?.params?.refresh) {
+      console.log('✨ Sorting posts by latest (refresh mode)');
       const sorted = [...posts].sort((a, b) => {
         const dateA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
         const dateB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
         return dateB - dateA; // 최신순
       });
+      console.log('📊 Sorted posts:', sorted.length, 'first post:', sorted[0]?.description?.substring(0, 20));
       setPostOrder(sorted);
       if (Platform.OS === 'web') {
         sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id }))));
       }
-      // refresh 파라미터 제거
-      navigation.setParams({ refresh: undefined, scrollToTop: undefined });
+      // refresh 파라미터 제거는 약간 지연
+      setTimeout(() => {
+        navigation.setParams({ refresh: undefined, scrollToTop: undefined });
+      }, 500);
       return sorted;
     }
 
