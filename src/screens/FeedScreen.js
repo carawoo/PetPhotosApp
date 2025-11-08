@@ -752,13 +752,6 @@ export default function FeedScreen({ route, navigation }) {
                       )}
                       <Text style={styles.cardTimestamp}>{getTimeAgo(item.createdAt)}</Text>
                     </View>
-
-                    {/* Card Index Indicator */}
-                    <View style={styles.cardIndexContainer}>
-                      <Text style={styles.cardIndexText}>
-                        {currentCardIndex + 1} / {randomizedPosts.length}
-                      </Text>
-                    </View>
                   </View>
                 );
               })()}
