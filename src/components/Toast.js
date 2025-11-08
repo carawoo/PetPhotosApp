@@ -54,20 +54,21 @@ export default function Toast({ visible, message, onHide, type = 'success', dura
   const iconColor = type === 'success' ? '#4CAF50' : '#FF3366';
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          opacity,
-          transform: [{ translateY }],
-        },
-      ]}
-    >
-      <View style={[styles.toast, type === 'error' && styles.toastError]}>
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.toast,
+          type === 'error' && styles.toastError,
+          {
+            opacity,
+            transform: [{ translateY }],
+          },
+        ]}
+      >
         <Ionicons name={iconName} size={24} color={iconColor} />
         <Text style={styles.message}>{message}</Text>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -75,10 +76,11 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: Platform.OS === 'web' ? 80 : 60,
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
     zIndex: 9999,
     alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   toast: {
     flexDirection: 'row',
@@ -95,6 +97,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
     maxWidth: 400,
+    marginHorizontal: 20,
   },
   toastError: {
     borderLeftColor: '#FF3366',

@@ -657,17 +657,19 @@ export default function CameraScreen() {
       setUploading(false);
 
       // 토스트 표시 및 피드로 이동
+      console.log('✅ Showing toast and navigating to feed...');
       setToastMessage('게시물이 등록되었습니다!');
       setToastType('success');
       setToastVisible(true);
 
       // 피드로 이동 (약간의 딜레이 후)
       setTimeout(() => {
+        console.log('📍 Navigating to Feed...');
         navigation.navigate('Feed', {
           refresh: true,
           scrollToTop: true
         });
-      }, 500);
+      }, 1500);
 
       // 웹에서 카메라 다시 시작
       if (Platform.OS === 'web') {
