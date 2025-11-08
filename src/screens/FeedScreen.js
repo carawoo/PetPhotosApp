@@ -638,7 +638,7 @@ export default function FeedScreen({ route, navigation }) {
             style={styles.viewModeButton}
           >
             <Ionicons
-              name={viewMode === 'list' ? 'phone-portrait-outline' : 'list-outline'}
+              name={viewMode === 'list' ? 'albums-outline' : 'reorder-three-outline'}
               size={28}
               color="#333"
             />
