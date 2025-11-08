@@ -616,13 +616,13 @@ export default function FeedScreen({ route, navigation }) {
         )}
 
         {/* 댓글 보기 */}
-        {item.comments?.length > 0 && (
+        {item.comments?.length > 0 ? (
           <TouchableOpacity onPress={() => handleComment(item)}>
             <Text style={styles.viewComments}>
               댓글 {item.comments.length}개 모두 보기
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
 
         {/* 시간 */}
         <Text style={styles.timestamp}>
@@ -779,13 +779,13 @@ export default function FeedScreen({ route, navigation }) {
                           </Text>
                         </View>
                       )}
-                      {item.comments?.length > 0 && (
+                      {item.comments?.length > 0 ? (
                         <TouchableOpacity onPress={() => handleComment(item)}>
                           <Text style={styles.cardComments}>
                             댓글 {item.comments.length}개 모두 보기
                           </Text>
                         </TouchableOpacity>
-                      )}
+                      ) : null}
                       <Text style={styles.cardTimestamp}>{getTimeAgo(item.createdAt)}</Text>
                     </View>
                   </View>

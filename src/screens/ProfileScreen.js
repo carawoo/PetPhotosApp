@@ -585,12 +585,12 @@ export default function ProfileScreen({ route, navigation }) {
         <View style={styles.postStats}>
           <Ionicons name="heart" size={18} color="#fff" />
           <Text style={styles.postStatText}>{post.likes || 0}</Text>
-          {post.comments?.length > 0 && (
+          {post.comments?.length > 0 ? (
             <>
               <Ionicons name="chatbubble" size={16} color="#fff" style={{ marginLeft: 12 }} />
               <Text style={styles.postStatText}>{post.comments.length}</Text>
             </>
-          )}
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>
