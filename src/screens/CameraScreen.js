@@ -639,11 +639,13 @@ export default function CameraScreen() {
       }
 
       // 게시물 생성 (images 배열로 전달)
+      console.log('📤 Calling addPost...');
       await addPost({
         petName: finalPetName.trim(),
         description: description.trim(),
         images: processedImages, // 배열로 전달
       });
+      console.log('✅ addPost completed');
 
       // 초기화
       setCapturedPhotos([]);
@@ -657,13 +659,15 @@ export default function CameraScreen() {
       setUploading(false);
 
       // 피드로 이동 및 토스트 표시
-      console.log('✅ Navigating to feed with toast...');
+      console.log('🚀 About to navigate to Feed with toast...');
+      console.log('Navigation object:', navigation);
       navigation.navigate('Feed', {
         refresh: true,
         scrollToTop: true,
         showToast: true,
         toastMessage: '게시물이 등록되었습니다!'
       });
+      console.log('✅ Navigation called');
 
       // 웹에서 카메라 다시 시작
       if (Platform.OS === 'web') {
