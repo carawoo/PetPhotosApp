@@ -642,7 +642,7 @@ export default function FeedScreen({ route, navigation }) {
               style={styles.viewModeButton}
             >
               <Ionicons
-                name={viewMode === 'list' ? 'copy-outline' : 'menu-outline'}
+                name={viewMode === 'list' ? 'copy-outline' : 'albums-outline'}
                 size={28}
                 color="#333"
               />
