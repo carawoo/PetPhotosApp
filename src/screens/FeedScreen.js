@@ -58,14 +58,10 @@ export default function FeedScreen({ route, navigation }) {
     return null;
   });
 
-  // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
-  const randomizedPosts = useMemo(() => {
-    console.log('🔄 randomizedPosts useMemo called, posts.length:', posts?.length, 'refresh:', route?.params?.refresh, 'postOrder exists:', !!postOrder);
-    if (!posts || posts.length === 0) return [];
-
-    // 새 게시물 등록 후 refresh 파라미터가 있으면 최신순으로 정렬
-    if (route?.params?.refresh) {
-      console.log('✨ Sorting posts by latest (refresh mode)');
+  // refresh 파라미터가 있으면 최신순 정렬하고 postOrder 업데이트
+  useEffect(() => {
+    if (route?.params?.refresh && posts && posts.length > 0) {
+      console.log('✨ Refresh mode: Sorting posts by latest');
       const sorted = [...posts].sort((a, b) => {
         const dateA = a.createdAt?.seconds || a.createdAt?._seconds || 0;
         const dateB = b.createdAt?.seconds || b.createdAt?._seconds || 0;
@@ -76,12 +72,15 @@ export default function FeedScreen({ route, navigation }) {
       if (Platform.OS === 'web') {
         sessionStorage.setItem('peto_feedOrder', JSON.stringify(sorted.map(p => ({ id: p.id }))));
       }
-      // refresh 파라미터 제거
-      setTimeout(() => {
-        navigation.setParams({ refresh: undefined, scrollToTop: undefined });
-      }, 100);
-      return sorted;
+      // refresh 파라미터 즉시 제거
+      navigation.setParams({ refresh: undefined, scrollToTop: undefined });
     }
+  }, [route?.params?.refresh, posts]);
+
+  // 피드 랜덤화: 오래된 게시물도 상위에 노출되도록 시간 가중치 기반 랜덤 정렬
+  const randomizedPosts = useMemo(() => {
+    console.log('🔄 randomizedPosts useMemo called, posts.length:', posts?.length, 'postOrder exists:', !!postOrder);
+    if (!posts || posts.length === 0) return [];
 
     // 기존 순서가 있고, 게시물 ID가 동일하면 기존 순서 유지
     if (postOrder && postOrder.length === posts.length) {
@@ -130,7 +129,7 @@ export default function FeedScreen({ route, navigation }) {
     }
 
     return sorted;
-  }, [posts, postOrder, route?.params?.refresh]);
+  }, [posts, postOrder]);
 
   // URL에서 postId가 전달되면 해당 게시물을 자동으로 열기
   useEffect(() => {
