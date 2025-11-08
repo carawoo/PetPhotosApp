@@ -1616,7 +1616,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 24,
     paddingBottom: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 0,
@@ -2520,6 +2520,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    opacity: 0.65,
   },
   cardLikeButton: {
     width: 64,

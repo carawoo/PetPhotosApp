@@ -6,6 +6,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/post/:id",
+      "destination": "/api/post/:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
