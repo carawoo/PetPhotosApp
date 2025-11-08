@@ -750,16 +750,6 @@ export default function ProfileScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* 탭 */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-          <Ionicons name="grid-outline" size={24} color="#FF3366" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="play-outline" size={24} color="#999" />
-        </TouchableOpacity>
-      </View>
-
       {/* 게시물 그리드 */}
       <View style={styles.postsGrid}>
         {userPosts.length > 0 ? (
