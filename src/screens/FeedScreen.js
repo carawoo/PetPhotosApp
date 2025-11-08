@@ -28,7 +28,7 @@ export default function FeedScreen({ route, navigation }) {
   const { currentUser } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'card'
+  const [viewMode, setViewMode] = useState('card'); // 'list' or 'card' - 기본값을 card로 설정
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   // 랜덤 순서를 세션에 저장 (새로고침 시에만 변경)
@@ -631,18 +631,23 @@ export default function FeedScreen({ route, navigation }) {
           <Text style={styles.headerTitle}>Peto</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={() => setViewMode(viewMode === 'list' ? 'card' : 'list')}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            activeOpacity={0.6}
-            style={styles.viewModeButton}
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'albums-outline' : 'reorder-three-outline'}
-              size={28}
-              color="#333"
-            />
-          </TouchableOpacity>
+          <View style={styles.viewModeContainer}>
+            <Text style={styles.viewModeLabel}>
+              {viewMode === 'list' ? '카드뷰로 보기' : '피드뷰로 보기'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setViewMode(viewMode === 'list' ? 'card' : 'list')}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              activeOpacity={0.6}
+              style={styles.viewModeButton}
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'albums-outline' : 'reorder-three-outline'}
+                size={28}
+                color="#333"
+              />
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             onPress={handleNotifications}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -2245,6 +2250,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewModeLabel: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   viewModeButton: {
     padding: 4,
