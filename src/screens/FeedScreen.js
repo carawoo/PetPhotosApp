@@ -822,7 +822,17 @@ export default function FeedScreen({ route, navigation }) {
               <Ionicons name="arrow-back" size={28} color="#333" />
             </TouchableOpacity>
             <Text style={styles.postModalTitle}>게시물</Text>
-            <View style={{ width: 28 }} />
+            {selectedPost && selectedPost.authorId === currentUser?.id ? (
+              <TouchableOpacity
+                onPress={() => handlePostMenu(selectedPost)}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                activeOpacity={0.6}
+              >
+                <Ionicons name="ellipsis-horizontal" size={28} color="#333" />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 28 }} />
+            )}
           </View>
 
           {/* Content */}
