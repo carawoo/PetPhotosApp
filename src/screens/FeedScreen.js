@@ -808,6 +808,14 @@ export default function FeedScreen({ route, navigation }) {
 
                   <TouchableOpacity
                     style={styles.cardActionButton}
+                    onPress={() => handleComment(currentItem)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chatbubble-outline" size={32} color="#333" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
                     onPress={() => handleShare(currentItem)}
                     activeOpacity={0.7}
                   >
