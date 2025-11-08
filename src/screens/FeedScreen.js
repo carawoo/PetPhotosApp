@@ -241,15 +241,21 @@ export default function FeedScreen({ route, navigation }) {
   };
 
   const handlePreviousCard = () => {
-    if (currentCardIndex > 0) {
-      setCurrentCardIndex(currentCardIndex - 1);
-    }
+    setCurrentCardIndex((prev) => {
+      if (prev === 0) {
+        return randomizedPosts.length - 1; // 첫 번째에서 마지막으로
+      }
+      return prev - 1;
+    });
   };
 
   const handleNextCard = () => {
-    if (currentCardIndex < randomizedPosts.length - 1) {
-      setCurrentCardIndex(currentCardIndex + 1);
-    }
+    setCurrentCardIndex((prev) => {
+      if (prev === randomizedPosts.length - 1) {
+        return 0; // 마지막에서 첫 번째로
+      }
+      return prev + 1;
+    });
   };
 
   const handleCardLike = () => {
@@ -675,128 +681,142 @@ export default function FeedScreen({ route, navigation }) {
       ) : (
         /* Card View */
         randomizedPosts.length > 0 ? (
-          <ScrollView
-            style={styles.cardScrollView}
-            contentContainerStyle={styles.cardScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {(() => {
-              const item = randomizedPosts[currentCardIndex];
-              if (!item || !item.id || !item.imageUrl || !item.author) return null;
+          <View style={styles.cardViewContainer}>
+            <ScrollView
+              style={styles.cardScrollView}
+              contentContainerStyle={styles.cardScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {(() => {
+                const item = randomizedPosts[currentCardIndex];
+                if (!item || !item.id || !item.imageUrl || !item.author) return null;
 
-              const isLiked = !currentUser
-                ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(item.id)
-                : item.likedBy?.includes(currentUser.id);
-              const authorProfileImage = item.authorProfileImage || null;
+                const isLiked = !currentUser
+                  ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(item.id)
+                  : item.likedBy?.includes(currentUser.id);
+                const authorProfileImage = item.authorProfileImage || null;
 
-              return (
-                <View style={styles.cardContent}>
-                  {/* Card Header */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.userInfo}>
-                      <View style={styles.avatar}>
-                        {authorProfileImage ? (
-                          <Image
-                            source={{ uri: authorProfileImage }}
-                            style={styles.avatarImage}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <Ionicons name="paw" size={20} color="#FF3366" />
-                        )}
+                return (
+                  <View style={styles.cardContent}>
+                    {/* Card Header */}
+                    <View style={styles.cardHeader}>
+                      <View style={styles.userInfo}>
+                        <View style={styles.avatar}>
+                          {authorProfileImage ? (
+                            <Image
+                              source={{ uri: authorProfileImage }}
+                              style={styles.avatarImage}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Ionicons name="paw" size={20} color="#FF3366" />
+                          )}
+                        </View>
+                        <View>
+                          <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>
+                          {item.petName && typeof item.petName === 'string' && item.petName.trim() && (
+                            <Text style={styles.petNameSmall}>{item.petName.trim()}</Text>
+                          )}
+                        </View>
                       </View>
-                      <View>
-                        <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>
-                        {item.petName && typeof item.petName === 'string' && item.petName.trim() && (
-                          <Text style={styles.petNameSmall}>{item.petName.trim()}</Text>
-                        )}
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handlePostMenu(item)}
-                      style={styles.postMenuButton}
-                      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                      activeOpacity={0.6}
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Image */}
-                  <ImageSlider images={item.images || [item.imageUrl]} />
-
-                  {/* Card Info */}
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardLikes}>좋아요 {item.likes || 0}개</Text>
-                    {item.description && typeof item.description === 'string' && item.description.trim() && (
-                      <View style={styles.cardCaptionContainer}>
-                        <Text style={styles.cardCaption}>
-                          <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>{' '}
-                          {item.description.trim()}
-                        </Text>
-                      </View>
-                    )}
-                    {item.comments?.length > 0 && (
-                      <TouchableOpacity onPress={() => handleComment(item)}>
-                        <Text style={styles.cardComments}>
-                          댓글 {item.comments.length}개 모두 보기
-                        </Text>
+                      <TouchableOpacity
+                        onPress={() => handlePostMenu(item)}
+                        style={styles.postMenuButton}
+                        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                        activeOpacity={0.6}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
                       </TouchableOpacity>
-                    )}
-                    <Text style={styles.cardTimestamp}>{getTimeAgo(item.createdAt)}</Text>
+                    </View>
+
+                    {/* Image */}
+                    <ImageSlider images={item.images || [item.imageUrl]} />
+
+                    {/* Card Info */}
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardLikes}>좋아요 {item.likes || 0}개</Text>
+                      {item.description && typeof item.description === 'string' && item.description.trim() && (
+                        <View style={styles.cardCaptionContainer}>
+                          <Text style={styles.cardCaption}>
+                            <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>{' '}
+                            {item.description.trim()}
+                          </Text>
+                        </View>
+                      )}
+                      {item.comments?.length > 0 && (
+                        <TouchableOpacity onPress={() => handleComment(item)}>
+                          <Text style={styles.cardComments}>
+                            댓글 {item.comments.length}개 모두 보기
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <Text style={styles.cardTimestamp}>{getTimeAgo(item.createdAt)}</Text>
+                    </View>
+
+                    {/* Card Index Indicator */}
+                    <View style={styles.cardIndexContainer}>
+                      <Text style={styles.cardIndexText}>
+                        {currentCardIndex + 1} / {randomizedPosts.length}
+                      </Text>
+                    </View>
                   </View>
+                );
+              })()}
+            </ScrollView>
 
-                  {/* Card Index Indicator */}
-                  <View style={styles.cardIndexContainer}>
-                    <Text style={styles.cardIndexText}>
-                      {currentCardIndex + 1} / {randomizedPosts.length}
-                    </Text>
-                  </View>
+            {/* Floating Action Buttons */}
+            {randomizedPosts[currentCardIndex] && (
+              <View style={styles.cardFloatingActions}>
+                <TouchableOpacity
+                  style={styles.cardActionButton}
+                  onPress={handlePreviousCard}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={32} color="#333" />
+                </TouchableOpacity>
 
-                  {/* Bottom Action Buttons */}
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      style={[styles.cardActionButton, currentCardIndex === 0 && styles.cardActionButtonDisabled]}
-                      onPress={handlePreviousCard}
-                      disabled={currentCardIndex === 0}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="chevron-back" size={32} color={currentCardIndex === 0 ? "#AEAEB2" : "#333"} />
-                    </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.cardActionButton, styles.cardLikeButton]}
+                  onPress={handleCardLike}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={
+                      !currentUser
+                        ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(randomizedPosts[currentCardIndex].id)
+                        : randomizedPosts[currentCardIndex].likedBy?.includes(currentUser.id)
+                      ? "heart"
+                      : "heart-outline"
+                    }
+                    size={36}
+                    color={
+                      !currentUser
+                        ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(randomizedPosts[currentCardIndex].id)
+                        : randomizedPosts[currentCardIndex].likedBy?.includes(currentUser.id)
+                      ? "#FF3366"
+                      : "#333"
+                    }
+                  />
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[styles.cardActionButton, styles.cardLikeButton]}
-                      onPress={handleCardLike}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={isLiked ? "heart" : "heart-outline"}
-                        size={36}
-                        color={isLiked ? "#FF3366" : "#333"}
-                      />
-                    </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cardActionButton}
+                  onPress={() => handleShare(randomizedPosts[currentCardIndex])}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="share-outline" size={32} color="#333" />
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={() => handleShare(item)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="share-outline" size={32} color="#333" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.cardActionButton, currentCardIndex === randomizedPosts.length - 1 && styles.cardActionButtonDisabled]}
-                      onPress={handleNextCard}
-                      disabled={currentCardIndex === randomizedPosts.length - 1}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="chevron-forward" size={32} color={currentCardIndex === randomizedPosts.length - 1 ? "#AEAEB2" : "#333"} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })()}
-          </ScrollView>
+                <TouchableOpacity
+                  style={styles.cardActionButton}
+                  onPress={handleNextCard}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-forward" size={32} color="#333" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="images-outline" size={64} color="#ccc" />
@@ -2234,6 +2254,10 @@ const styles = StyleSheet.create({
   viewModeButton: {
     padding: 4,
   },
+  cardViewContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   cardScrollView: {
     flex: 1,
     backgroundColor: '#FAFBFC',
@@ -2244,6 +2268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 20,
+    paddingBottom: 140,
     minHeight: '100%',
   },
   cardContent: {
@@ -2257,7 +2282,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
-    marginBottom: 20,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -2308,15 +2332,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#8E8E93',
   },
-  cardActions: {
+  cardFloatingActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 16,
-    backgroundColor: '#F8F9FA',
+    paddingBottom: 120,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   cardActionButton: {
     width: 60,
@@ -2327,18 +2361,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
-  },
-  cardActionButtonDisabled: {
-    opacity: 0.3,
   },
   cardLikeButton: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    shadowOpacity: 0.15,
+    backgroundColor: '#FFFFFF',
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
   },
