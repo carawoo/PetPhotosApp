@@ -244,7 +244,7 @@ export default function FloatingActionButton({ navigation }) {
         throw new Error('올바른 이미지 형식이 아닙니다.');
       }
 
-      addPost({
+      await addPost({
         imageUrl,
         petName: finalPetName.trim(),
         description: description.trim(),
@@ -258,7 +258,15 @@ export default function FloatingActionButton({ navigation }) {
       setDescription('');
       setUploadModalVisible(false);
 
-      Alert.alert('성공', '게시물이 업로드되었습니다!');
+      // Feed로 이동 및 토스트 표시
+      if (navigation) {
+        navigation.navigate('Feed', {
+          refresh: true,
+          scrollToTop: true,
+          showToast: true,
+          toastMessage: '게시물이 등록되었습니다!'
+        });
+      }
     } catch (error) {
       console.error('Upload error:', error);
       Alert.alert(
