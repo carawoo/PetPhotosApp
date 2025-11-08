@@ -28,6 +28,8 @@ export default function FeedScreen({ route, navigation }) {
   const { currentUser } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'card'
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   // 랜덤 순서를 세션에 저장 (새로고침 시에만 변경)
   const [postOrder, setPostOrder] = useState(() => {
@@ -236,6 +238,24 @@ export default function FeedScreen({ route, navigation }) {
 
   const handleNotifications = () => {
     setShowNotifications(true);
+  };
+
+  const handlePreviousCard = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(currentCardIndex - 1);
+    }
+  };
+
+  const handleNextCard = () => {
+    if (currentCardIndex < randomizedPosts.length - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+    }
+  };
+
+  const handleCardLike = () => {
+    if (randomizedPosts[currentCardIndex]) {
+      handleLike(randomizedPosts[currentCardIndex].id);
+    }
   };
 
   const handleReportPost = (post) => {
@@ -604,29 +624,176 @@ export default function FeedScreen({ route, navigation }) {
           <Ionicons name="paw" size={32} color="#FF3366" />
           <Text style={styles.headerTitle}>Peto</Text>
         </View>
-        <TouchableOpacity
-          onPress={handleNotifications}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          activeOpacity={0.6}
-          style={styles.notificationButton}
-        >
-          <Ionicons name="notifications-outline" size={28} color="#333" />
-          {unreadCount > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>
-                {unreadCount > 99 ? '99+' : unreadCount}
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => setViewMode(viewMode === 'list' ? 'card' : 'list')}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            activeOpacity={0.6}
+            style={styles.viewModeButton}
+          >
+            <Ionicons
+              name={viewMode === 'list' ? 'card-outline' : 'list-outline'}
+              size={28}
+              color="#333"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleNotifications}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            activeOpacity={0.6}
+            style={styles.notificationButton}
+          >
+            <Ionicons name="notifications-outline" size={28} color="#333" />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {viewMode === 'list' ? (
+        <FlatList
+          data={randomizedPosts}
+          renderItem={renderPost}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="images-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyText}>아직 게시물이 없습니다</Text>
+              <Text style={styles.emptySubText}>
+                카메라로 반려동물 사진을 찍어보세요!
               </Text>
             </View>
-          )}
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={randomizedPosts}
-        renderItem={renderPost}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={
+          }
+        />
+      ) : (
+        /* Card View */
+        randomizedPosts.length > 0 ? (
+          <View style={styles.cardContainer}>
+            {(() => {
+              const item = randomizedPosts[currentCardIndex];
+              if (!item || !item.id || !item.imageUrl || !item.author) return null;
+
+              const isLiked = !currentUser
+                ? JSON.parse(localStorage.getItem('peto_guestLikes') || '[]').includes(item.id)
+                : item.likedBy?.includes(currentUser.id);
+              const authorProfileImage = item.authorProfileImage || null;
+
+              return (
+                <View style={styles.cardContent}>
+                  {/* Card Header */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.userInfo}>
+                      <View style={styles.avatar}>
+                        {authorProfileImage ? (
+                          <Image
+                            source={{ uri: authorProfileImage }}
+                            style={styles.avatarImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Ionicons name="paw" size={20} color="#FF3366" />
+                        )}
+                      </View>
+                      <View>
+                        <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>
+                        {item.petName && typeof item.petName === 'string' && item.petName.trim() && (
+                          <Text style={styles.petNameSmall}>{item.petName.trim()}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handlePostMenu(item)}
+                      style={styles.postMenuButton}
+                      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                      activeOpacity={0.6}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Image */}
+                  <ImageSlider images={item.images || [item.imageUrl]} />
+
+                  {/* Card Info */}
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardLikes}>좋아요 {item.likes || 0}개</Text>
+                    {item.description && typeof item.description === 'string' && item.description.trim() && (
+                      <View style={styles.cardCaptionContainer}>
+                        <Text style={styles.cardCaption}>
+                          <Text style={styles.authorName}>{item.author || 'Anonymous'}</Text>{' '}
+                          {item.description.trim()}
+                        </Text>
+                      </View>
+                    )}
+                    {item.comments?.length > 0 && (
+                      <TouchableOpacity onPress={() => handleComment(item)}>
+                        <Text style={styles.cardComments}>
+                          댓글 {item.comments.length}개 모두 보기
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <Text style={styles.cardTimestamp}>{getTimeAgo(item.createdAt)}</Text>
+                  </View>
+
+                  {/* Card Index Indicator */}
+                  <View style={styles.cardIndexContainer}>
+                    <Text style={styles.cardIndexText}>
+                      {currentCardIndex + 1} / {randomizedPosts.length}
+                    </Text>
+                  </View>
+
+                  {/* Bottom Action Buttons */}
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      style={[styles.cardActionButton, currentCardIndex === 0 && styles.cardActionButtonDisabled]}
+                      onPress={handlePreviousCard}
+                      disabled={currentCardIndex === 0}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="chevron-back" size={32} color={currentCardIndex === 0 ? "#AEAEB2" : "#333"} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.cardActionButton, styles.cardLikeButton]}
+                      onPress={handleCardLike}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isLiked ? "heart" : "heart-outline"}
+                        size={36}
+                        color={isLiked ? "#FF3366" : "#333"}
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.cardActionButton}
+                      onPress={() => handleShare(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="share-outline" size={32} color="#333" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.cardActionButton, currentCardIndex === randomizedPosts.length - 1 && styles.cardActionButtonDisabled]}
+                      onPress={handleNextCard}
+                      disabled={currentCardIndex === randomizedPosts.length - 1}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="chevron-forward" size={32} color={currentCardIndex === randomizedPosts.length - 1 ? "#AEAEB2" : "#333"} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="images-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>아직 게시물이 없습니다</Text>
@@ -634,8 +801,8 @@ export default function FeedScreen({ route, navigation }) {
               카메라로 반려동물 사진을 찍어보세요!
             </Text>
           </View>
-        }
-      />
+        )
+      )}
 
       {/* 게시물 상세 모달 */}
       <Modal
@@ -2044,6 +2211,117 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: '#8E8E93',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  viewModeButton: {
+    padding: 4,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
+  cardContent: {
+    width: '100%',
+    maxWidth: 500,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  cardInfo: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  cardLikes: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  cardCaptionContainer: {
+    marginBottom: 8,
+  },
+  cardCaption: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#2C2C2E',
+  },
+  cardComments: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  cardTimestamp: {
+    fontSize: 12,
+    color: '#C7C7CC',
+    fontWeight: '500',
+  },
+  cardIndexContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  cardIndexText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8E8E93',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8F9FA',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  cardActionButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardActionButtonDisabled: {
+    opacity: 0.3,
+  },
+  cardLikeButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   // 게시물 모달 스타일
   postModalContainer: {

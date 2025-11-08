@@ -45,7 +45,7 @@ const imageSize = (width - 8) / 3; // padding(2) + margin(6) = 8
 
 export default function ProfileScreen({ route, navigation }) {
   const { currentUser, logout, updateProfileImage, updateProfileBio } = useAuth();
-  const { posts, toggleLike, addComment, deleteComment } = usePost();
+  const { posts, toggleLike, addComment, deleteComment, deletePost, updatePost } = usePost();
   const [uploading, setUploading] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -53,6 +53,13 @@ export default function ProfileScreen({ route, navigation }) {
   const [bioText, setBioText] = useState('');
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const [showAdminScreen, setShowAdminScreen] = useState(false);
+  const [menuPost, setMenuPost] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editPetInputText, setEditPetInputText] = useState('');
+  const [editLocalPets, setEditLocalPets] = useState([]);
+  const [editSelectedPet, setEditSelectedPet] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   // URL에서 받은 userId 또는 현재 로그인 사용자
   const profileUserId = route?.params?.userId || currentUser?.id;
@@ -468,6 +475,104 @@ export default function ProfileScreen({ route, navigation }) {
     return `${diffDays}일 전`;
   };
 
+  const handlePostMenu = (post) => {
+    setMenuPost(post);
+  };
+
+  const handleEditPost = (post) => {
+    setMenuPost(null);
+    setEditingPost(post);
+    setEditLocalPets([post.petName]);
+    setEditSelectedPet(post.petName);
+    setEditPetInputText('');
+    setEditDescription(post.description || '');
+  };
+
+  const handleEditPetInputChange = (text) => {
+    if (text.endsWith(',')) {
+      const newPetName = text.slice(0, -1).trim();
+      if (newPetName && !editLocalPets.includes(newPetName)) {
+        setEditLocalPets([...editLocalPets, newPetName]);
+        if (!editSelectedPet) {
+          setEditSelectedPet(newPetName);
+        }
+      }
+      setEditPetInputText('');
+    } else {
+      setEditPetInputText(text);
+    }
+  };
+
+  const handleEditRemovePet = (petToRemove) => {
+    setEditLocalPets(editLocalPets.filter(p => p !== petToRemove));
+    if (editSelectedPet === petToRemove) {
+      setEditSelectedPet(editLocalPets.find(p => p !== petToRemove) || '');
+    }
+  };
+
+  const handleEditSelectPet = (pet) => {
+    setEditSelectedPet(pet);
+  };
+
+  const submitPostEdit = () => {
+    if (!editSelectedPet && editLocalPets.length === 0) {
+      if (Platform.OS === 'web') {
+        alert('반려동물 이름을 입력해주세요.');
+      } else {
+        Alert.alert('알림', '반려동물 이름을 입력해주세요.');
+      }
+      return;
+    }
+
+    const finalPetName = editSelectedPet || editLocalPets[0];
+    if (!finalPetName) {
+      if (Platform.OS === 'web') {
+        alert('반려동물을 선택해주세요.');
+      } else {
+        Alert.alert('알림', '반려동물을 선택해주세요.');
+      }
+      return;
+    }
+
+    updatePost(editingPost.id, {
+      petName: finalPetName.trim(),
+      description: editDescription.trim(),
+    });
+
+    setEditingPost(null);
+    setEditPetInputText('');
+    setEditLocalPets([]);
+    setEditSelectedPet('');
+    setEditDescription('');
+
+    if (Platform.OS === 'web') {
+      alert('게시물이 수정되었습니다.');
+    } else {
+      Alert.alert('수정 완료', '게시물이 수정되었습니다.');
+    }
+  };
+
+  const cancelPostEdit = () => {
+    setEditingPost(null);
+    setEditPetInputText('');
+    setEditLocalPets([]);
+    setEditSelectedPet('');
+    setEditDescription('');
+  };
+
+  const handleDeletePost = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePost = () => {
+    if (menuPost) {
+      deletePost(menuPost.id);
+      setShowDeleteConfirm(false);
+      setMenuPost(null);
+      setSelectedPost(null);
+    }
+  };
+
   const renderPost = (post) => (
     <TouchableOpacity
       key={post.id}
@@ -683,7 +788,17 @@ export default function ProfileScreen({ route, navigation }) {
               <Ionicons name="close" size={28} color="#333" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>게시물</Text>
-            <View style={{ width: 28 }} />
+            {selectedPost && selectedPost.authorId === currentUser?.id ? (
+              <TouchableOpacity
+                onPress={() => handlePostMenu(selectedPost)}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                activeOpacity={0.6}
+              >
+                <Ionicons name="ellipsis-horizontal" size={28} color="#333" />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 28 }} />
+            )}
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
@@ -865,6 +980,212 @@ export default function ProfileScreen({ route, navigation }) {
         onRequestClose={() => setShowAdminScreen(false)}
       >
         <AdminDashboardScreen navigation={{ goBack: () => setShowAdminScreen(false) }} />
+      </Modal>
+
+      {/* 게시물 메뉴 모달 */}
+      <Modal
+        visible={menuPost !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setMenuPost(null)}
+          />
+          <View style={styles.actionSheet}>
+            <TouchableOpacity
+              style={styles.actionSheetButton}
+              onPress={() => handleEditPost(menuPost)}
+            >
+              <Ionicons name="create-outline" size={24} color="#333" />
+              <Text style={styles.actionSheetButtonText}>게시물 수정</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionSheetButton, styles.actionSheetButtonDanger]}
+              onPress={handleDeletePost}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+              <Text style={[styles.actionSheetButtonText, styles.actionSheetButtonTextDanger]}>
+                게시물 삭제
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionSheetButton, styles.actionSheetButtonCancel]}
+              onPress={() => setMenuPost(null)}
+            >
+              <Text style={styles.actionSheetButtonText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 삭제 확인 모달 */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmDialog}>
+            <Text style={styles.confirmTitle}>게시물 삭제</Text>
+            <Text style={styles.confirmMessage}>
+              정말 이 게시물을 삭제하시겠습니까?{'\n'}삭제된 게시물은 복구할 수 없습니다.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonCancel]}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={styles.confirmButtonTextCancel}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonDanger]}
+                onPress={confirmDeletePost}
+              >
+                <Text style={styles.confirmButtonTextDanger}>삭제</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 게시물 수정 모달 */}
+      <Modal
+        visible={editingPost !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={cancelPostEdit}
+      >
+        <View style={styles.uploadModalOverlay}>
+          <TouchableOpacity
+            style={styles.overlayTouchable}
+            activeOpacity={1}
+            onPress={cancelPostEdit}
+          />
+          <View
+            style={styles.uploadModalContent}
+            onStartShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
+          >
+            <View style={styles.uploadModalHeader}>
+              <Text style={styles.uploadModalTitle}>게시물 수정</Text>
+              <TouchableOpacity onPress={cancelPostEdit}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.editModalScrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {editingPost && (
+                <Image
+                  source={{ uri: editingPost.imageUrl }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
+              )}
+
+              <View style={styles.formContainer}>
+                {/* 반려동물 선택 */}
+                <View style={styles.petSelectionContainer}>
+                  <Text style={styles.petSelectionLabel}>반려동물 *</Text>
+
+                  {/* 이름 입력란 (콤마로 태그 추가) */}
+                  <TextInput
+                    style={styles.addPetInput}
+                    placeholder="이름 입력 후 콤마(,)로 추가"
+                    value={editPetInputText}
+                    onChangeText={handleEditPetInputChange}
+                    maxLength={20}
+                  />
+
+                  {/* 추가된 태그 칩 */}
+                  {editLocalPets.length > 0 && (
+                    <View style={styles.petChipsContainer}>
+                      {editLocalPets.map((pet, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.petChip,
+                            editSelectedPet === pet && styles.petChipSelected
+                          ]}
+                          onPress={() => handleEditSelectPet(pet)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="paw"
+                            size={16}
+                            color={editSelectedPet === pet ? "#FFFFFF" : "#FF3366"}
+                          />
+                          <Text style={[
+                            styles.petChipText,
+                            editSelectedPet === pet && styles.petChipTextSelected
+                          ]}>
+                            {pet}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => handleEditRemovePet(pet)}
+                            style={styles.petChipRemoveButton}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={18}
+                              color={editSelectedPet === pet ? "#FFFFFF" : "#999"}
+                            />
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* 등록된 반려동물 빠른 추가 */}
+                  {currentUser?.pets && currentUser.pets.length > 0 && (
+                    <View style={styles.registeredPetsContainer}>
+                      <Text style={styles.registeredPetsLabel}>등록된 반려동물</Text>
+                      <View style={styles.petChipsContainer}>
+                        {currentUser.pets.map((pet, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={styles.registeredPetChip}
+                            onPress={() => {
+                              if (!editLocalPets.includes(pet)) {
+                                setEditLocalPets([...editLocalPets, pet]);
+                                setEditSelectedPet(pet);
+                              }
+                            }}
+                            disabled={editLocalPets.includes(pet)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="add-circle-outline" size={16} color="#FF3366" />
+                            <Text style={styles.registeredPetChipText}>{pet}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                <TextInput
+                  style={[styles.input, styles.descriptionInput]}
+                  placeholder="설명을 입력하세요..."
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  multiline
+                  numberOfLines={4}
+                />
+                <TouchableOpacity style={styles.uploadButton} onPress={submitPostEdit}>
+                  <Text style={styles.uploadButtonText}>수정 완료</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </ScrollView>
   );
@@ -1442,5 +1763,289 @@ const styles = StyleSheet.create({
   adminMenuText: {
     color: '#FF3366',
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  actionSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+  },
+  actionSheetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  actionSheetButtonDanger: {
+    backgroundColor: '#FFFFFF',
+  },
+  actionSheetButtonCancel: {
+    borderBottomWidth: 0,
+    marginTop: 12,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 16,
+    marginHorizontal: 16,
+  },
+  actionSheetButtonText: {
+    fontSize: 17,
+    color: '#1A1A1A',
+    marginLeft: 14,
+    fontWeight: '600',
+  },
+  actionSheetButtonTextDanger: {
+    color: '#FF3B30',
+    fontWeight: '600',
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 20,
+  },
+  confirmDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  confirmTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 14,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  confirmMessage: {
+    fontSize: 15,
+    color: '#8E8E93',
+    lineHeight: 23,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  confirmButtonCancel: {
+    backgroundColor: '#F5F5F7',
+  },
+  confirmButtonDanger: {
+    backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  confirmButtonTextCancel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  confirmButtonTextDanger: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  uploadModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  uploadModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '90%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  uploadModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  uploadModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  previewImage: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#F5F5F7',
+  },
+  formContainer: {
+    padding: 24,
+  },
+  input: {
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
+  },
+  descriptionInput: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  petSelectionContainer: {
+    marginBottom: 20,
+  },
+  petSelectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  addPetInput: {
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
+  },
+  petChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 12,
+  },
+  petChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFE8F0',
+    gap: 6,
+  },
+  petChipSelected: {
+    backgroundColor: '#FF3366',
+    borderColor: '#FF3366',
+  },
+  petChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3366',
+  },
+  petChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  petChipRemoveButton: {
+    padding: 2,
+  },
+  registeredPetsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  registeredPetsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  registeredPetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 6,
+  },
+  registeredPetChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  editModalScrollView: {
+    flex: 1,
+  },
+  uploadButton: {
+    backgroundColor: '#FF3366',
+    height: 54,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    shadowColor: '#FF3366',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  uploadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
 });
