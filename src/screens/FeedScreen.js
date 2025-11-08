@@ -632,7 +632,7 @@ export default function FeedScreen({ route, navigation }) {
             style={styles.viewModeButton}
           >
             <Ionicons
-              name={viewMode === 'list' ? 'card-outline' : 'list-outline'}
+              name={viewMode === 'list' ? 'phone-portrait-outline' : 'list-outline'}
               size={28}
               color="#333"
             />
