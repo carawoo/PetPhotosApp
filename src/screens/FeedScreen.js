@@ -30,6 +30,8 @@ export default function FeedScreen({ route, navigation }) {
   const [selectedPost, setSelectedPost] = useState(null);
   const [viewMode, setViewMode] = useState('card'); // 'list' or 'card' - 기본값을 card로 설정
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showCommentSheet, setShowCommentSheet] = useState(false);
+  const [commentSheetPost, setCommentSheetPost] = useState(null);
 
   // 랜덤 순서를 세션에 저장 (새로고침 시에만 변경)
   const [postOrder, setPostOrder] = useState(() => {
@@ -142,22 +144,34 @@ export default function FeedScreen({ route, navigation }) {
   };
 
   const handleComment = (post) => {
-    // 비회원은 로그인 화면으로 이동
+    // 비회원은 로그인 안내 후 선택지 제공
     if (!currentUser) {
       if (Platform.OS === 'web') {
-        localStorage.setItem('peto_requestLogin', 'true');
-        window.location.reload();
+        if (window.confirm('로그인 후 이용 가능합니다. 닉네임만으로 이용해보세요!\n\n로그인 페이지로 이동하시겠습니까?')) {
+          localStorage.setItem('peto_requestLogin', 'true');
+          window.location.reload();
+        }
       } else {
         Alert.alert(
           '로그인 필요',
-          '댓글을 작성하려면 로그인이 필요합니다.',
-          [{ text: '확인', style: 'default' }]
+          '로그인 후 이용 가능합니다. 닉네임만으로 이용해보세요!',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '로그인',
+              onPress: () => {
+                // 로그인 화면으로 이동
+              }
+            }
+          ]
         );
       }
       return;
     }
 
-    setSelectedPost(post);
+    // 로그인된 경우 댓글 바텀시트 표시
+    setCommentSheetPost(post);
+    setShowCommentSheet(true);
     setEditingComment(null);
     setCommentText('');
   };
@@ -436,14 +450,15 @@ export default function FeedScreen({ route, navigation }) {
       return;
     }
 
-    if (commentText.trim() && selectedPost) {
+    const targetPost = selectedPost || commentSheetPost;
+    if (commentText.trim() && targetPost) {
       if (editingComment) {
         // 댓글 수정
-        updateComment(selectedPost.id, editingComment.id, commentText.trim());
+        updateComment(targetPost.id, editingComment.id, commentText.trim());
         setEditingComment(null);
       } else {
         // 댓글 추가
-        addComment(selectedPost.id, commentText.trim());
+        addComment(targetPost.id, commentText.trim());
       }
       setCommentText('');
     }
@@ -1479,6 +1494,104 @@ export default function FeedScreen({ route, navigation }) {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 댓글 바텀시트 */}
+      <Modal
+        visible={showCommentSheet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCommentSheet(false)}
+      >
+        <View style={styles.commentSheetOverlay}>
+          <TouchableOpacity
+            style={styles.commentSheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowCommentSheet(false)}
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.commentSheetContainer}
+          >
+            <View style={styles.commentSheet}>
+              {/* 헤더 */}
+              <View style={styles.commentSheetHeader}>
+                <View style={styles.commentSheetHandle} />
+                <Text style={styles.commentSheetTitle}>
+                  댓글 {commentSheetPost?.comments?.length || 0}개
+                </Text>
+              </View>
+
+              {/* 댓글 목록 */}
+              <ScrollView
+                style={styles.commentSheetScroll}
+                showsVerticalScrollIndicator={false}
+              >
+                {commentSheetPost?.comments && commentSheetPost.comments.length > 0 ? (
+                  commentSheetPost.comments.map((comment) => (
+                    <View key={comment.id} style={styles.commentSheetItem}>
+                      <View style={styles.commentSheetItemHeader}>
+                        <View style={styles.commentSheetItemLeft}>
+                          <Text style={styles.commentSheetAuthor}>{comment.author}</Text>
+                          {comment.updatedAt && (
+                            <Text style={styles.commentSheetEdited}>(수정됨)</Text>
+                          )}
+                        </View>
+                        {comment.authorId === currentUser?.id && (
+                          <TouchableOpacity
+                            onPress={() => handleCommentMenu(comment)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Ionicons name="ellipsis-horizontal" size={16} color="#999" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={styles.commentSheetText}>{comment.text}</Text>
+                      <Text style={styles.commentSheetTime}>{getTimeAgo(comment.createdAt)}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.commentSheetEmpty}>첫 댓글을 남겨보세요!</Text>
+                )}
+              </ScrollView>
+
+              {/* 댓글 입력 */}
+              <View style={styles.commentSheetInputContainer}>
+                {editingComment && (
+                  <View style={styles.commentSheetEditingIndicator}>
+                    <Text style={styles.commentSheetEditingText}>댓글 수정 중...</Text>
+                    <TouchableOpacity onPress={cancelEdit}>
+                      <Ionicons name="close" size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                <View style={styles.commentSheetInputRow}>
+                  <TextInput
+                    style={styles.commentSheetInput}
+                    placeholder={editingComment ? "댓글 수정..." : "댓글을 입력하세요..."}
+                    value={commentText}
+                    onChangeText={setCommentText}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.commentSheetSubmitButton,
+                      !commentText.trim() && styles.commentSheetSubmitButtonDisabled
+                    ]}
+                    onPress={submitComment}
+                    disabled={!commentText.trim()}
+                  >
+                    <Ionicons
+                      name={editingComment ? "checkmark" : "send"}
+                      size={24}
+                      color={commentText.trim() ? "#FF3366" : "#AEAEB2"}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* 플로팅 액션 버튼 */}
@@ -2540,6 +2653,139 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   submitCommentButtonDisabled: {
+    opacity: 0.5,
+  },
+  // 댓글 바텀시트 스타일
+  commentSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  commentSheetBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  commentSheetContainer: {
+    maxHeight: '80%',
+  },
+  commentSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '100%',
+  },
+  commentSheetHeader: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  commentSheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#C7C7CC',
+    borderRadius: 2,
+    marginBottom: 12,
+  },
+  commentSheetTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  commentSheetScroll: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+  },
+  commentSheetItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  commentSheetItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentSheetItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentSheetAuthor: {
+    fontWeight: '700',
+    fontSize: 14,
+    color: '#1A1A1A',
+  },
+  commentSheetEdited: {
+    fontSize: 11,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  commentSheetText: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 6,
+    color: '#2C2C2E',
+  },
+  commentSheetTime: {
+    fontSize: 12,
+    color: '#C7C7CC',
+    fontWeight: '500',
+  },
+  commentSheetEmpty: {
+    textAlign: 'center',
+    color: '#8E8E93',
+    paddingVertical: 40,
+    fontSize: 15,
+  },
+  commentSheetInputContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+  },
+  commentSheetEditingIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFF9E6',
+    borderTopWidth: 1,
+    borderTopColor: '#FFE6A3',
+  },
+  commentSheetEditingText: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  commentSheetInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  commentSheetInput: {
+    flex: 1,
+    backgroundColor: '#F5F5F7',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    maxHeight: 100,
+    fontSize: 15,
+    color: '#1A1A1A',
+  },
+  commentSheetSubmitButton: {
+    padding: 8,
+  },
+  commentSheetSubmitButtonDisabled: {
     opacity: 0.5,
   },
 });
