@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ImageSlider from '../components/ImageSlider';
+import Toast from '../components/Toast';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,11 @@ export default function FeedScreen({ route, navigation }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [selectedPost, setSelectedPost] = useState(null);
   const [viewMode, setViewMode] = useState('card'); // 'list' or 'card' - 기본값을 card로 설정
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showCommentSheet, setShowCommentSheet] = useState(false);
   const [commentSheetPost, setCommentSheetPost] = useState(null);
@@ -127,6 +133,19 @@ export default function FeedScreen({ route, navigation }) {
       }
     }
   }, [route?.params?.postId, randomizedPosts]);
+
+  // 토스트 표시 (새 게시물 등록 후)
+  useEffect(() => {
+    if (route?.params?.showToast && route?.params?.toastMessage) {
+      setToastMessage(route.params.toastMessage);
+      setToastType('success');
+      setToastVisible(true);
+
+      // 파라미터 제거
+      navigation.setParams({ showToast: undefined, toastMessage: undefined });
+    }
+  }, [route?.params?.showToast, route?.params?.toastMessage]);
+
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
@@ -1612,6 +1631,14 @@ export default function FeedScreen({ route, navigation }) {
 
       {/* 플로팅 액션 버튼 */}
       <FloatingActionButton navigation={navigation} />
+
+      {/* Toast 알림 */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 }
