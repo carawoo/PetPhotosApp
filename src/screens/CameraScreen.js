@@ -715,13 +715,17 @@ export default function CameraScreen() {
                 alt: 'Preview',
                 style: {
                   width: '100%',
-                  height: 300,
-                  objectFit: 'cover',
+                  maxWidth: 450,
+                  maxHeight: 450,
+                  aspectRatio: 1,
+                  objectFit: 'contain',
+                  backgroundColor: '#F5F5F7',
+                  margin: '0 auto',
                   filter: capturedPhotos[currentPhotoIndex].filter,
                 },
               })
             ) : (
-              <Image source={{ uri: capturedPhotos[currentPhotoIndex].uri }} style={styles.formImage} />
+              <Image source={{ uri: capturedPhotos[currentPhotoIndex].uri }} style={styles.formImage} resizeMode="contain" />
             )}
 
             {/* 여러 장인 경우 네비게이션 표시 */}
@@ -1600,11 +1604,14 @@ const styles = StyleSheet.create({
   imageSliderContainer: {
     position: 'relative',
     width: '100%',
+    alignItems: 'center',
   },
   formImage: {
     width: '100%',
-    aspectRatio: 4 / 3,
-    backgroundColor: '#E5E5EA',
+    maxWidth: 450,
+    aspectRatio: 1,
+    backgroundColor: '#F5F5F7',
+    alignSelf: 'center',
   },
   slideButton: {
     position: 'absolute',

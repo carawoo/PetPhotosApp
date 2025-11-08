@@ -18,13 +18,20 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     // Firestore 문서 데이터 파싱
-    const imageUrl = data.fields?.imageUrl?.stringValue || 'https://peto.real-e.space/favicon-512x512.png';
-    const caption = data.fields?.caption?.stringValue || '반려동물 사진을 공유하는 소셜 네트워크 앱';
+    // images 배열에서 첫 번째 이미지 가져오기
+    let imageUrl = 'https://peto.real-e.space/favicon-512x512.png';
+    if (data.fields?.images?.arrayValue?.values && data.fields.images.arrayValue.values.length > 0) {
+      imageUrl = data.fields.images.arrayValue.values[0].stringValue;
+    } else if (data.fields?.imageUrl?.stringValue) {
+      // 하위 호환성을 위해 imageUrl도 체크
+      imageUrl = data.fields.imageUrl.stringValue;
+    }
+
+    const description = data.fields?.description?.stringValue || '반려동물 사진을 공유하는 소셜 네트워크 앱';
     const author = data.fields?.author?.stringValue || 'Peto 사용자';
     const petName = data.fields?.petName?.stringValue || '';
 
     const title = petName ? `${author}님의 ${petName} 사진` : `${author}님의 반려동물 사진`;
-    const description = caption || '반려동물 사진을 공유하는 소셜 네트워크 앱';
 
     // HTML with dynamic meta tags
     const html = `<!DOCTYPE html>
