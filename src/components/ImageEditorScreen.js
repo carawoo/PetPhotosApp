@@ -349,16 +349,26 @@ export default function ImageEditorScreen({ visible, imageUri, onConfirm, onCanc
     setCroppedUri(null); // 크롭도 초기화
   };
 
+  const handleClose = () => {
+    // 크롭된 이미지가 있으면 원본으로 돌아가기
+    if (croppedUri) {
+      setCroppedUri(null);
+    } else {
+      // 원본 상태면 모달 닫기
+      onCancel();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      onRequestClose={onCancel}
+      onRequestClose={handleClose}
     >
       <View style={styles.container}>
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onCancel}>
+          <TouchableOpacity onPress={handleClose}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>편집</Text>
