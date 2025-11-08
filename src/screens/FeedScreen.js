@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -36,6 +36,10 @@ export default function FeedScreen({ route, navigation }) {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+  // Refs for scrolling
+  const flatListRef = useRef(null);
+  const scrollViewRef = useRef(null);
   const [showCommentSheet, setShowCommentSheet] = useState(false);
   const [commentSheetPost, setCommentSheetPost] = useState(null);
 
@@ -146,6 +150,22 @@ export default function FeedScreen({ route, navigation }) {
       navigation.setParams({ showToast: undefined, toastMessage: undefined });
     }
   }, [route?.params?.showToast, route?.params?.toastMessage]);
+
+  // 스크롤 to top (새 게시물 등록 후)
+  useEffect(() => {
+    if (route?.params?.scrollToTop) {
+      console.log('📜 Scrolling to top, viewMode:', viewMode);
+      setTimeout(() => {
+        if (viewMode === 'list' && flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        } else if (viewMode === 'card' && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+        // 인덱스도 0으로 설정
+        setCurrentCardIndex(0);
+      }, 100);
+    }
+  }, [route?.params?.scrollToTop, viewMode]);
 
   const [commentText, setCommentText] = useState('');
   const [editingComment, setEditingComment] = useState(null);
@@ -719,6 +739,7 @@ export default function FeedScreen({ route, navigation }) {
 
       {viewMode === 'list' ? (
         <FlatList
+          ref={flatListRef}
           data={randomizedPosts}
           renderItem={renderPost}
           keyExtractor={item => item.id}
@@ -739,6 +760,7 @@ export default function FeedScreen({ route, navigation }) {
         randomizedPosts.length > 0 ? (
           <View style={styles.cardViewContainer}>
             <ScrollView
+              ref={scrollViewRef}
               style={styles.cardScrollView}
               contentContainerStyle={styles.cardScrollContent}
               showsVerticalScrollIndicator={false}
